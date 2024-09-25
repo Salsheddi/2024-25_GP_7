@@ -11,6 +11,7 @@ Mirsad is an Android mobile application designed for people who want to protect 
  Mirsad provides percentage feedback on the messages. Also, the app offers an analytical report feature based on the messages classified as fraudulent and reported by the users. The analytical reports are available on a weekly, monthly, and annual basis, providing insights into the reported messages. Additionally, a detailed justification to help better understand the meaning behind how that percentage was assigned and to gain more insights.
  
 ## Tools and Programming Languages:
+
 •	Flutter.
 •	Visual Studio Code.
 •	Python.
@@ -18,5 +19,6 @@ Mirsad is an Android mobile application designed for people who want to protect 
 •	Jira.
 •	Android studio.
 •	Canva.
-***
-[![My Skills](https://skillicons.dev/icons?i=py,anaconda&perline=3)](https://skillicons.dev)
+
+## 
+[![My Skills](https://skillicons.dev/icons?i=visualstudio,py,anaconda,jira,github,git,androidstudio,flutter&perline=3)](https://skillicons.dev)
