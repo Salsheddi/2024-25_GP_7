@@ -19,6 +19,5 @@ Mirsad is an Android mobile application designed for people who want to protect 
 •	Jira.
 •	Android studio.
 •	Canva.
-
-## 
-[![My Skills](https://skillicons.dev/icons?i=visualstudio,py,anaconda,jira,github,git,androidstudio,flutter&perline=3)](https://skillicons.dev)
+***
+[![My Skills](https://skillicons.dev/icons?i=visualstudio,py,anaconda,github,git,androidstudio,flutter&perline=3)](https://skillicons.dev)
