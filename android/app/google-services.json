@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "1030565643332",
+    "project_id": "mirsad-db",
+    "storage_bucket": "mirsad-db.appspot.com"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:1030565643332:android:064dbd2bf2da0b70956811",
+        "android_client_info": {
+          "package_name": "com.example.mirsad"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyBN4RPd-buUSfoc-gj5e9r9yNG-ublvXS4"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
