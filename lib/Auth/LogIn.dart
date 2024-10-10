@@ -156,7 +156,7 @@ class _LoginState extends State<Login> {
                         style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
                       ),
                     ),
-                  ),
+                  ), 
                   const SizedBox(height: 20),
 
                   // Sign up link
