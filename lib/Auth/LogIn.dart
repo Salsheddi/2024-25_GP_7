@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'ResetPass.dart'; 
+import 'ResetPass.dart';
 
 class Login extends StatefulWidget {
   const Login({super.key});
@@ -17,11 +17,18 @@ class _LoginState extends State<Login> {
   Widget build(BuildContext context) {
     return Scaffold(
       body: Container(
-        decoration: const BoxDecoration(
+        decoration: BoxDecoration(
           gradient: LinearGradient(
-            colors: [Color.fromARGB(164, 0, 200, 255), Color.fromARGB(255, 90, 161, 248)], // Blue gradient
             begin: Alignment.topCenter,
             end: Alignment.bottomCenter,
+            colors: [
+              Color(0xFF1D76E2), // #1D76E2
+              Color(0xFF2184FC), // #2184FC
+              Color(0xFF4D9CFC), // #4D9CFC
+              Color(0xFF7DB4F6), // #7DB4F6
+              Color(0xFFC1DDFF), // #C1DDFF
+              Color(0xFFD9D9D9), // #D9D9D9
+            ],
           ),
         ),
         child: Stack(
@@ -31,7 +38,8 @@ class _LoginState extends State<Login> {
               child: IconButton(
                 icon: const Icon(Icons.arrow_back, color: Colors.white),
                 onPressed: () {
-                  Navigator.of(context).pop(); // To go back to the previous screen
+                  Navigator.of(context)
+                      .pop(); // To go back to the previous screen
                 },
               ),
             ),
@@ -44,46 +52,31 @@ class _LoginState extends State<Login> {
                 children: <Widget>[
                   Column(
                     children: [
-                      const SizedBox(height: 60), // Spacing below the back button
+                      const SizedBox(
+                          height: 60), // Spacing below the back button
 
                       // Circular Logo Section
                       Container(
-                        width: 120,
-                        height: 120,
+                        height: 100,
+                        width: 100,
                         decoration: BoxDecoration(
-                          shape: BoxShape.circle,
-                          border: Border.all(color: Colors.white, width: 5),
-                          boxShadow: [
-                            BoxShadow(
-                              color: Colors.black26,
-                              blurRadius: 10,
-                              offset: Offset(0, 5),
-                            ),
-                          ],
+                          borderRadius: BorderRadius.circular(70),
+                          color: Colors.white.withOpacity(0.75),
                         ),
-                        child: ClipOval(
-                          child: Image.asset(
-                            'img/Mirsad2.png', // Path to your logo image
-                            fit: BoxFit.cover,
-                            width: 110,
-                            height: 110,
-                          ),
+                        child: Image.asset(
+                          'img/Mirsad2.png',
                         ),
                       ),
-
-                      const SizedBox(height: 20),
-
-                      // Text below the logo
-                      const Text(
+                      SizedBox(height: 20),
+                      Text(
                         'Your First Line In Defense Against Smishing',
+                        textAlign: TextAlign.center,
                         style: TextStyle(
                           color: Colors.white,
                           fontSize: 16,
-                          fontWeight: FontWeight.bold,
                         ),
-                        textAlign: TextAlign.center,
                       ),
-                      const SizedBox(height: 50),
+                      SizedBox(height: 30),
                     ],
                   ),
 
@@ -91,13 +84,19 @@ class _LoginState extends State<Login> {
                   TextField(
                     controller: _usernameController,
                     decoration: InputDecoration(
-                      filled: true,
-                      fillColor: Colors.white.withOpacity(0.8),
-                      hintText: 'Username',
-                      border: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(10.0),
-                      ),
-                    ),
+                        hintText: 'Username',
+                        hintStyle: TextStyle(
+                          fontSize: 12,
+                          color: Colors.white.withOpacity(0.83),
+                        ),
+                        contentPadding:
+                            EdgeInsets.symmetric(vertical: 2, horizontal: 20),
+                        filled: true,
+                        fillColor: Colors.white.withOpacity(0.28),
+                        border: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(13.0),
+                          borderSide: BorderSide.none,
+                        )),
                   ),
                   const SizedBox(height: 20),
 
@@ -106,13 +105,19 @@ class _LoginState extends State<Login> {
                     controller: _passwordController,
                     obscureText: true,
                     decoration: InputDecoration(
-                      filled: true,
-                      fillColor: Colors.white.withOpacity(0.8),
-                      hintText: 'Password',
-                      border: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(10.0),
-                      ),
-                    ),
+                        filled: true,
+                        fillColor: Colors.white.withOpacity(0.28),
+                        hintText: 'Password',
+                        hintStyle: TextStyle(
+                          fontSize: 12,
+                          color: Colors.white.withOpacity(0.83),
+                        ),
+                        contentPadding:
+                            EdgeInsets.symmetric(vertical: 2, horizontal: 20),
+                        border: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(13.0),
+                          borderSide: BorderSide.none,
+                        )),
                   ),
                   const SizedBox(height: 20),
 
@@ -123,7 +128,9 @@ class _LoginState extends State<Login> {
                       onPressed: () {
                         Navigator.push(
                           context,
-                          MaterialPageRoute(builder: (context) => ResetPass()), // Navigate to ResetPass
+                          MaterialPageRoute(
+                              builder: (context) =>
+                                  ResetPass()), // Navigate to ResetPass
                         );
                       },
                       child: const Text(
@@ -138,14 +145,13 @@ class _LoginState extends State<Login> {
                   // Log in Button
                   SizedBox(
                     width: double.infinity,
-                    height: 50,
+                    height: 53,
                     child: ElevatedButton(
                       style: ElevatedButton.styleFrom(
                         backgroundColor: Colors.white,
-                        foregroundColor: Color.fromARGB(255, 90, 161, 248),
-                         
+                        foregroundColor: Color(0xFF1D76E2),
                         shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(10.0),
+                          borderRadius: BorderRadius.circular(13),
                         ),
                       ),
                       onPressed: () {
@@ -153,10 +159,11 @@ class _LoginState extends State<Login> {
                       },
                       child: const Text(
                         'Log in',
-                        style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                        style: TextStyle(
+                            fontSize: 18, fontWeight: FontWeight.bold),
                       ),
                     ),
-                  ), 
+                  ),
                   const SizedBox(height: 20),
 
                   // Sign up link

@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/widgets.dart';
-import 'Auth/LogIn.dart'; 
+import 'package:mirsad/Auth/SignUp.dart';
+import 'Auth/LogIn.dart';
 
 void main() {
   runApp(const MyApp());
@@ -12,7 +13,7 @@ class MyApp extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
-      title: 'Mirsad', 
+      title: 'Mirsad',
       theme: ThemeData(
         primarySwatch: Colors.blue,
       ),
@@ -59,36 +60,47 @@ class MainPage extends StatelessWidget {
                 textAlign: TextAlign.center, // Center the text
               ),
               const SizedBox(height: 40), // Space between text and buttons
-              
+
               // Sign Up Button
               ElevatedButton(
                 onPressed: () {
-                  // Add sign-up navigation logic here
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                        builder: (context) =>
+                            const SignUp()), // Navigate to LogIn page
+                  );
                 },
                 style: ElevatedButton.styleFrom(
-                  backgroundColor: const Color(0xFF1D76E2), // Background color set to #1D76E2
+                  backgroundColor: const Color(
+                      0xFF1D76E2), // Background color set to #1D76E2
                   minimumSize: const Size(200, 50), // Button size
                   shape: RoundedRectangleBorder(
                     borderRadius: BorderRadius.circular(8), // Rounded corners
                   ),
                 ),
                 child: const Text(
-                  'Sign Up', 
-                  style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold), // Text color
+                  'Sign Up',
+                  style: TextStyle(
+                      color: Colors.white,
+                      fontWeight: FontWeight.bold), // Text color
                 ),
               ),
               const SizedBox(height: 20), // Space between buttons
-              
+
               // Log In Button
               ElevatedButton(
                 onPressed: () {
                   Navigator.push(
                     context,
-                    MaterialPageRoute(builder: (context) => const Login()), // Navigate to LogIn page
+                    MaterialPageRoute(
+                        builder: (context) =>
+                            const Login()), // Navigate to LogIn page
                   );
                 },
                 style: ElevatedButton.styleFrom(
-                  backgroundColor: const Color(0xFF1D76E2), // Background color set to #1D76E2
+                  backgroundColor: const Color(
+                      0xFF1D76E2), // Background color set to #1D76E2
                   minimumSize: const Size(200, 50), // Button size
                   shape: RoundedRectangleBorder(
                     borderRadius: BorderRadius.circular(8), // Rounded corners
@@ -96,7 +108,9 @@ class MainPage extends StatelessWidget {
                 ),
                 child: const Text(
                   'Log In',
-                  style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold), // Text color
+                  style: TextStyle(
+                      color: Colors.white,
+                      fontWeight: FontWeight.bold), // Text color
                 ),
               ),
             ],
@@ -106,4 +120,3 @@ class MainPage extends StatelessWidget {
     );
   }
 }
-
