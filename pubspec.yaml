@@ -81,7 +81,7 @@ flutter:
   fonts:
   - family: Freeman
     fonts:
-        - asset: flutter_assets/fonts/Freeman.ttf
+    - asset: fonts/Freeman.ttf
         
   #   - family: Schyler
   #     fonts:

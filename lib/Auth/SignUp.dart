@@ -156,26 +156,32 @@ class _SignUpState extends State<SignUp> {
 
         //text under button
         SizedBox(height: 35),
-
-        Center(
-          child: Text.rich(
-            TextSpan(children: [
-              TextSpan(text: "You have an acount? "),
-              TextSpan(
-                text: " Log in now!",
-                style: TextStyle(fontWeight: FontWeight.bold),
-                recognizer: TapGestureRecognizer()
-                  ..onTap = () {
-                    // Navigate to the Login page
-                    Navigator.push(
-                      context,
-                      MaterialPageRoute(builder: (context) => const Login()),
-                    );
-                  },
+        Row(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: <Widget>[
+            const Text(
+              "You have an acount? ",
+              style: TextStyle(color: Colors.white),
+            ),
+            TextButton(
+              onPressed: () {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                      builder: (context) =>
+                          const Login()), // Navigate to LogIn page
+                );
+              },
+              child: const Text(
+                "Log in now!",
+                style: TextStyle(
+                  color: Colors.white,
+                  fontWeight: FontWeight.bold,
+                ),
               ),
-            ]),
-          ),
-        )
+            ),
+          ],
+        ),
       ]),
     ));
   }

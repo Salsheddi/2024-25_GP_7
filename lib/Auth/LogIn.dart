@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:mirsad/Auth/SignUp.dart';
 import 'ResetPass.dart';
 
 class Login extends StatefulWidget {
@@ -176,7 +177,12 @@ class _LoginState extends State<Login> {
                       ),
                       TextButton(
                         onPressed: () {
-                          // Navigate to the signup page
+                          Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                                builder: (context) =>
+                                    const SignUp()), // Navigate to LogIn page
+                          );
                         },
                         child: const Text(
                           'Sign up now!',
