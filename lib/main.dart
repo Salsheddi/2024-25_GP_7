@@ -1,10 +1,14 @@
+// ignore: depend_on_referenced_packages
+import 'package:firebase_core/firebase_core.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/widgets.dart';
 import 'package:mirsad/Auth/SignUp.dart';
-import 'Auth/LogIn.dart';
+import 'package:mirsad/Auth/LogIn.dart';
 
-void main() {
-  runApp(const MyApp());
+void main() async {
+  WidgetsFlutterBinding.ensureInitialized();
+  await Firebase.initializeApp();
+  runApp(MyApp());
 }
 
 class MyApp extends StatelessWidget {
@@ -95,7 +99,7 @@ class MainPage extends StatelessWidget {
                     context,
                     MaterialPageRoute(
                         builder: (context) =>
-                            const Login()), // Navigate to LogIn page
+                            const LogIn()), // Navigate to LogIn page
                   );
                 },
                 style: ElevatedButton.styleFrom(
