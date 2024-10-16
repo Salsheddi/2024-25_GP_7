@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
-import 'LogIn.dart';
+import 'package:mirsad/Auth/LogIn.dart';
 
 class ResetPass extends StatelessWidget {
   @override

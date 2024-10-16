@@ -190,7 +190,7 @@ class _LogInState extends State<LogIn> {
               SizedBox(height: 25),
                                    // Forget your password link
                   Align(
-                    alignment: Alignment.centerRight,
+                    alignment: Alignment.centerRight,  
                     child: TextButton(
                       onPressed: () {
                         Navigator.push(
