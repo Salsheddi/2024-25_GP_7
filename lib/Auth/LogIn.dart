@@ -2,6 +2,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:mirsad/Auth/SignUp.dart';
+import 'package:mirsad/Auth/ResetPass.dart'; 
 
 class LogIn extends StatefulWidget {
   const LogIn({super.key});
@@ -187,6 +188,24 @@ class _LogInState extends State<LogIn> {
                 obscureText: true, // For password security
               ),
               SizedBox(height: 25),
+                                   // Forget your password link
+                  Align(
+                    alignment: Alignment.centerRight,
+                    child: TextButton(
+                      onPressed: () {
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(builder: (context) => ResetPass()), // Navigate to ResetPass
+                        );
+                      },
+                      child: const Text(
+                        'Forget your password?',
+                        style: TextStyle(color: Colors.white),
+                      ),
+                    ),
+                  ),
+
+                  const SizedBox(height: 30),
 
               // Login button
               MaterialButton(
