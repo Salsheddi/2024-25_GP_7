@@ -1,10 +1,72 @@
 import 'package:flutter/material.dart';
-import 'OTPveri.dart';
+import 'package:firebase_auth/firebase_auth.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:mirsad/Auth/LogIn.dart';
 
 class ResetPass extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
-    TextEditingController emailController = TextEditingController();
+    TextEditingController usernameController = TextEditingController();
+
+    // Function to send the reset email after fetching the email by username
+    Future<void> _sendResetEmailByUsername(BuildContext context) async {
+      String username = usernameController.text.trim();
+
+      // Show loading spinner
+      showDialog(
+        context: context,
+        barrierDismissible: false,
+        builder: (BuildContext context) {
+          return Center(
+            child: CircularProgressIndicator(),
+          );
+        },
+      );
+
+      try {
+        // Firestore query to get the email by username
+        CollectionReference users = FirebaseFirestore.instance.collection('users'); // Replace 'users' with your collection name
+
+        QuerySnapshot querySnapshot = await users.where('username', isEqualTo: username).get();
+
+        if (querySnapshot.docs.isNotEmpty) {
+          String email = querySnapshot.docs[0]['email']; // Assuming 'email' is a field in your user document
+          
+          // Send the reset password email
+          await FirebaseAuth.instance.sendPasswordResetEmail(email: email);
+
+          // Dismiss the loading spinner
+          Navigator.pop(context);
+
+          // Show success message
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text('Password reset email sent to $email')),
+          );
+
+          // Navigate to the OTP verification page or login page
+          Navigator.pushReplacement(
+            context,
+            MaterialPageRoute(builder: (context) => LogIn()),
+          );
+        } else {
+          // Dismiss the loading spinner
+          Navigator.pop(context);
+
+          // Show error message if username is not found
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text('Username not found')),
+          );
+        }
+      } catch (e) {
+        // Dismiss the loading spinner
+        Navigator.pop(context);
+
+        // Show error message
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Error: ${e.toString()}')),
+        );
+      }
+    }
 
     return Scaffold(
       body: Stack(
@@ -53,7 +115,7 @@ class ResetPass extends StatelessWidget {
                     child: Column(
                       mainAxisAlignment: MainAxisAlignment.center,
                       children: [
-                        // Semi-transparent background box for text and email field
+                        // Semi-transparent background box for text and username field
                         Container(
                           padding: EdgeInsets.all(16.0),
                           decoration: BoxDecoration(
@@ -63,7 +125,7 @@ class ResetPass extends StatelessWidget {
                           child: Column(
                             children: [
                               Text(
-                                'Please enter your registered E-mail & we will send an OTP verification code to reset your password.',
+                                'Please enter your registered Username & we will send a link to reset your password.',
                                 textAlign: TextAlign.center,
                                 style: TextStyle(
                                   fontSize: 18.0,
@@ -79,17 +141,17 @@ class ResetPass extends StatelessWidget {
                                 ),
                               ),
                               SizedBox(height: 20),
-                              // Email input field
+                              // Username input field
                               TextField(
-                                controller: emailController,
+                                controller: usernameController,
                                 decoration: InputDecoration(
-                                  labelText: 'E-mail',
+                                  labelText: 'Username',
                                   labelStyle: TextStyle(
-                                    color: Colors.white, 
+                                    color: Colors.white,
                                     fontWeight: FontWeight.bold,
                                     fontSize: 18.0, // Increase label font size
-                                  ), 
-                                  filled: true, 
+                                  ),
+                                  filled: true,
                                   fillColor: Colors.black.withOpacity(0.3), // Slight background color to stand out
                                   enabledBorder: OutlineInputBorder(
                                     borderSide: BorderSide(
@@ -115,23 +177,21 @@ class ResetPass extends StatelessWidget {
                               // Proceed button
                               ElevatedButton(
                                 onPressed: () {
-                                  Navigator.push(
-                                    context,
-                                    MaterialPageRoute(builder: (context) => OTPveri()),
-                                  );
+                                  _sendResetEmailByUsername(context); // Call the function to reset password
                                 },
                                 style: ElevatedButton.styleFrom(
-                  backgroundColor: Color.fromARGB(255, 255, 255, 255), // Background color set to #1D76E2
-                  minimumSize: const Size(200, 50), // Button size
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(8), // Rounded corners
-                  ),
-                ),
-                                child: Text('Proceed',
-                                style: TextStyle(
-                            color: Colors.black,
-                            fontWeight: FontWeight.bold,
-                          ),
+                                  backgroundColor: Colors.white, // Button color
+                                  minimumSize: const Size(200, 50), // Button size
+                                  shape: RoundedRectangleBorder(
+                                    borderRadius: BorderRadius.circular(8), // Rounded corners
+                                  ),
+                                ),
+                                child: Text(
+                                  'Proceed',
+                                  style: TextStyle(
+                                    color: Colors.black,
+                                    fontWeight: FontWeight.bold,
+                                  ),
                                 ),
                               ),
                             ],

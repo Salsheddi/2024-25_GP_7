@@ -2,13 +2,12 @@
 
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
-import 'package:firebase_core/firebase_core.dart';
-import 'package:flutter/material.dart';
+import 'package:flutter/material.dart'; 
 import 'package:crypto/crypto.dart'; // For hashing the password
 import 'dart:convert'; // For utf8.encode
 import 'package:mirsad/Auth/LogIn.dart';
 
-class SignUp extends StatefulWidget {
+class SignUp extends StatefulWidget { 
   const SignUp({super.key});
 
   @override
@@ -25,6 +24,14 @@ class _SignUpState extends State<SignUp> {
   TextEditingController phoneController = TextEditingController();
   TextEditingController passwordController = TextEditingController();
 
+  // Variables to track password validation
+  bool isPasswordValid = false;
+  bool hasUppercase = false;
+  bool hasLowercase = false;
+  bool hasNumber = false;
+  bool hasSpecialChar = false;
+  bool hasMinLength = false;
+
   // Form key for validation
   final _formKey = GlobalKey<FormState>();
 
@@ -35,13 +42,18 @@ class _SignUpState extends State<SignUp> {
         RegExp(r'^[0-9]+$').hasMatch(phoneNumber);
   }
 
+  // Function to validate email
+  bool isValidEmail(String email) {
+    return RegExp(r'^[^@]+@[^@]+\.[^@]+').hasMatch(email);
+  }
+
   // Function to hash the password
   String hashPassword(String password) {
     var bytes = utf8.encode(password); // Convert the password to bytes
     return sha256.convert(bytes).toString(); // Hash the password using SHA256
   }
 
-  // Function to show loading dialog to prevent user from altering the info while storing
+  // Function to show loading dialog
   void _showLoadingDialog(BuildContext context) {
     showDialog(
       context: context,
@@ -50,8 +62,29 @@ class _SignUpState extends State<SignUp> {
     );
   }
 
-  // Function to check if the username and email are unique
-  Future<bool> isUnique(String username, String email) async {
+  // Function to show pop-up messages
+  void _showPopUpMessage(BuildContext context, String message) {
+    showDialog(
+      context: context,
+      builder: (context) {
+        return AlertDialog(
+          title: Text("Invalid Input"),
+          content: Text(message),
+          actions: [
+            TextButton(
+              child: Text("OK"),
+              onPressed: () {
+                Navigator.of(context).pop();
+              },
+            )
+          ],
+        );
+      },
+    );
+  }
+
+  // Function to check if username, email, and phone are unique
+  Future<bool> isUnique(String username, String email, String phone) async {
     QuerySnapshot usernameSnapshot = await _firestore
         .collection('users')
         .where('username', isEqualTo: username)
@@ -60,79 +93,99 @@ class _SignUpState extends State<SignUp> {
         .collection('users')
         .where('email', isEqualTo: email)
         .get();
+    QuerySnapshot phoneSnapshot = await _firestore
+        .collection('users')
+        .where('phone', isEqualTo: phone)
+        .get();
 
-    if (usernameSnapshot.docs.isNotEmpty || emailSnapshot.docs.isNotEmpty) {
-      return false; // Username or email is already taken
+    if (usernameSnapshot.docs.isNotEmpty) {
+      _showPopUpMessage(context, 'Username is already taken');
+      return false;
     }
+
+    if (emailSnapshot.docs.isNotEmpty) {
+      _showPopUpMessage(context, 'Email is already taken');
+      return false;
+    }
+
+    if (phoneSnapshot.docs.isNotEmpty) {
+      _showPopUpMessage(context, 'Phone number is already taken');
+      return false;
+    }
+
     return true;
   }
 
+  bool validateStructure(String value) {
+  String pattern = r'^(?=.*?[A-Z])(?=.*?[a-z])(?=.*?[0-9])(?=.*?[!@#\$&*~]).{8,}$';
+  RegExp regExp = new RegExp(pattern);
+  return regExp.hasMatch(value);
+}
+
   // Function to handle sign-up
   void _signUp() async {
+    
     String username = usernameController.text.trim();
     String email = emailController.text.trim();
     String phone = phoneController.text.trim();
     String password = passwordController.text.trim();
 
-    // Check if any field is empty
-    if (username.isEmpty ||
-        email.isEmpty ||
-        phone.isEmpty ||
-        password.isEmpty) {
-      ScaffoldMessenger.of(context)
-          .showSnackBar(SnackBar(content: Text('Please fill all fields')));
+    if (username.isEmpty || email.isEmpty || phone.isEmpty || password.isEmpty) {
+      _showPopUpMessage(context, 'Please fill all fields');
       return;
     }
 
-    // Validate phone number
     if (!isValidPhoneNumber(phone)) {
-      ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-          content:
-              Text('Phone number must start with 05 and be 10 digits long')));
+      _showPopUpMessage(context,
+          'Phone number must start with 05 and be 10 digits long');
       return;
     }
 
-    // Check if username and email are unique
-    _showLoadingDialog(context); // Show loading dialog
-    bool unique = await isUnique(username, email);
-    Navigator.pop(context); // Close loading dialog
-
-    if (!unique) {
-      ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Username or Email is already taken')));
+    if (!isValidEmail(email)) {
+      _showPopUpMessage(context, 'Please enter a valid email address');
       return;
     }
 
-    // If all validations pass, hash the password and store the data
+    // Validate password structure
+  if (!validateStructure(password)) {
+    _showPopUpMessage(context, 'Password must be at least 8 characters long, '
+        'and include at least one uppercase letter, one lowercase letter, '
+        'one digit, and one special character.');
+    return;
+  }
+
+    _showLoadingDialog(context);
+    bool unique = await isUnique(username, email, phone);
+    Navigator.pop(context);
+
+    if (!unique) return;
+
     try {
-      _showLoadingDialog(
-          context); // Show loading dialog during the sign-up process
+      _showLoadingDialog(context);
       String hashedPassword = hashPassword(password);
 
-      // Store user data in Firebase Authentication and Firestore
       UserCredential userCredential = await _auth
           .createUserWithEmailAndPassword(email: email, password: password);
 
       await _firestore.collection('users').doc(userCredential.user!.uid).set({
+        'uid': userCredential.user!.uid,
         'username': username,
         'email': email,
         'phone': phone,
-        'password': hashedPassword, // Store hashed password
+        'password': hashedPassword,
+      }).then((value) {
+        Navigator.pop(context);
+        ScaffoldMessenger.of(context)
+            .showSnackBar(SnackBar(content: Text('Sign-up successful!')));
+        Navigator.pushReplacement(
+            context, MaterialPageRoute(builder: (context) => const LogIn()));
+      }).catchError((error) {
+        Navigator.pop(context);
+        _showPopUpMessage(context, 'Failed to store user data: $error');
       });
-
-      Navigator.pop(context); // Close loading dialog
-      ScaffoldMessenger.of(context)
-          .showSnackBar(SnackBar(content: Text('Sign-up successful!')));
-
-      // Navigate to login or home page
-      Navigator.pushReplacement(
-          context,
-          MaterialPageRoute(
-              builder: (context) => const LogIn())); // should be homepage
     } catch (e) {
-      Navigator.pop(context); // Close loading dialog
-      ScaffoldMessenger.of(context)
-          .showSnackBar(SnackBar(content: Text('Error: $e')));
+      Navigator.pop(context);
+      _showPopUpMessage(context, 'Error: $e');
     }
   }
 
@@ -295,7 +348,7 @@ class _SignUpState extends State<SignUp> {
                     child: Text(
                       'Log in',
                       style: TextStyle(
-                        color: Color(0xFFB1D6FD),
+                        color: Color.fromARGB(255, 255, 255, 255),
                         fontSize: 13,
                       ),
                     ),
