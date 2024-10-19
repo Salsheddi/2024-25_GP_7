@@ -6,6 +6,7 @@ import 'package:flutter/gestures.dart';
 import 'package:flutter/widgets.dart';
 import 'package:curved_navigation_bar/curved_navigation_bar.dart';
 import 'package:material_design_icons_flutter/material_design_icons_flutter.dart';
+import 'package:mirsad/main.dart';
 
 class Profile extends StatefulWidget {
   const Profile({super.key});
@@ -20,6 +21,20 @@ class _ProfileState extends State<Profile> {
     const Icon(Icons.home, size: 32, color: Colors.white),
     const Icon(Icons.person, size: 32, color: Colors.white)
   ];
+
+  Future<void> logOut() async {
+    try {
+      await FirebaseAuth.instance.signOut(); // Sign out from Firebase
+
+      Navigator.pushReplacement(
+        context,
+        MaterialPageRoute(builder: (context) => const MainPage()),
+      );
+    } catch (e) {
+      ScaffoldMessenger.of(context)
+          .showSnackBar(SnackBar(content: Text('Error: $e')));
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -103,7 +118,7 @@ class _ProfileState extends State<Profile> {
                       imagePath: 'images/Logout.png',
                       textColor: Colors.black,
                       backgroundColor: Color(0xFFFFC046),
-                      onPress: () {},
+                      onPress: logOut,
                       endIcon: false,
                     ),
                     const SizedBox(height: 15),
