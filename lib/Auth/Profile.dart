@@ -35,12 +35,28 @@ class _ProfileState extends State<Profile> {
 
   ];
 
+<<<<<<< HEAD
   String? userName;
 
   String? userEmail;
 
 
 
+=======
+  Future<void> logOut() async {
+    try {
+      await FirebaseAuth.instance.signOut(); // Sign out from Firebase
+
+      Navigator.pushReplacement(
+        context,
+        MaterialPageRoute(builder: (context) => const MainPage()),
+      );
+    } catch (e) {
+      ScaffoldMessenger.of(context)
+          .showSnackBar(SnackBar(content: Text('Error: $e')));
+    }
+  }
+>>>>>>> 1fc8c85d4351e6cda44ebe438cd7ea319059dff6
 
   @override
 
@@ -437,7 +453,28 @@ ScaffoldMessenger.of(context).showSnackBar(
                         backgroundColor: const Color(0xFF707EFF),
 
                         onPress: () {}),
+<<<<<<< HEAD
 
+=======
+                    const SizedBox(height: 15),
+                    ProfileInfoWidget(
+                        text: "About Mirsad",
+                        imagePath: 'images/MirsadLogo.png',
+                        textColor: Colors.black,
+                        backgroundColor: const Color(0xFF2184FC),
+                        onPress: () {}),
+                    const SizedBox(height: 10),
+                    const Divider(),
+                    const SizedBox(height: 10),
+                    ProfileInfoWidget(
+                      text: "Log out",
+                      imagePath: 'images/Logout.png',
+                      textColor: Colors.black,
+                      backgroundColor: Color(0xFFFFC046),
+                      onPress: logOut,
+                      endIcon: false,
+                    ),
+>>>>>>> 1fc8c85d4351e6cda44ebe438cd7ea319059dff6
                     const SizedBox(height: 15),
 
                     ProfileInfoWidget(
