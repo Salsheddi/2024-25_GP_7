@@ -1,8 +1,10 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/widgets.dart';
+import 'package:mirsad/Auth/Profile.dart';
 import 'package:mirsad/Auth/SignUp.dart';
-import 'package:mirsad/Auth/ResetPass.dart'; 
+import 'package:mirsad/Auth/ResetPass.dart';
 
 class LogIn extends StatefulWidget {
   const LogIn({super.key});
@@ -22,54 +24,39 @@ class _LogInState extends State<LogIn> {
   // Form key for validation
   final _formKey = GlobalKey<FormState>();
 
-  // Function to show loading dialog
-  void _showLoadingDialog(BuildContext context) {
-    showDialog(
-      context: context,
-      barrierDismissible: false,
-      builder: (context) => Center(child: CircularProgressIndicator()),
-    );
-  }
-
-  // Function to show pop-up messages
-  void _showPopUpMessage(BuildContext context, String message) {
-    showDialog(
-      context: context,
-      builder: (context) {
-        return AlertDialog(
-          title: Text("Invalid Input"),
-          content: Text(message),
-          actions: [
-            TextButton(
-              child: Text("OK"),
-              onPressed: () {
-                Navigator.of(context).pop();
-              },
-            )
-          ],
-        );
-      },
-    );
-  }
+  // Variables to store error messages
+  String? emailErrorMessage;
+  String? passwordErrorMessage;
 
   // Function to handle login
   void _logIn() async {
+    setState(() {
+      emailErrorMessage = null;
+      passwordErrorMessage = null;
+    });
+
     String email = emailController.text.trim();
     String password = passwordController.text.trim();
 
-    // Check for empty fields
-    if (email.isEmpty || password.isEmpty) {
-      _showPopUpMessage(context, 'Please fill all fields');
-      return;
+    // Check for empty fields and set error messages
+    if (email.isEmpty) {
+      setState(() {
+        emailErrorMessage = "Email cannot be empty";
+      });
+    } else if (!RegExp(r'^[^@]+@[^@]+\.[^@]+').hasMatch(email)) {
+      setState(() {
+        emailErrorMessage = "Please enter a valid email address";
+      });
     }
 
-    // Check for valid email format
-    if (!RegExp(r'^[^@]+@[^@]+\.[^@]+').hasMatch(email)) {
-      _showPopUpMessage(context, 'Please enter a valid email address');
-      return;
+    if (password.isEmpty) {
+      setState(() {
+        passwordErrorMessage = "Password cannot be empty";
+      });
     }
 
-    _showLoadingDialog(context);
+    // If there are errors, return early
+    if (emailErrorMessage != null || passwordErrorMessage != null) return;
 
     try {
       // Sign in the user
@@ -81,26 +68,18 @@ class _LogInState extends State<LogIn> {
       // Check if the user exists in Firestore
       DocumentSnapshot userDoc = await _firestore.collection('users').doc(userCredential.user!.uid).get();
       if (userDoc.exists) {
-        Navigator.pop(context);
-        Navigator.pushReplacement(context, MaterialPageRoute(builder: (context) => SignUp())); // Replace with Home or Profile
-        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Login successful!')));
+        Navigator.pushReplacement(context, MaterialPageRoute(builder: (context) => const Profile())); // Replace with Home or Profile
       } else {
-        Navigator.pop(context);
-        _showPopUpMessage(context, 'Incorrect Email/Password');
+        setState(() {
+          emailErrorMessage = "Email or password is incorrect";
+          passwordErrorMessage = "Email or password is incorrect";
+        });
       }
     } catch (e) {
-      Navigator.pop(context);
-
-      // Handle Firebase authentication exceptions
-      if (e is FirebaseAuthException) {
-        if (e.code == 'wrong-password' || e.code == 'user-not-found') {
-          _showPopUpMessage(context, 'Incorrect Email/Password');
-        } else {
-          _showPopUpMessage(context, 'Incorrect Email/Password.');
-        }
-      } else {
-        _showPopUpMessage(context, 'Error: $e');
-      }
+      setState(() {
+        emailErrorMessage = "Failed to log in. Check your credentials.";
+        passwordErrorMessage = "Failed to log in. Check your credentials.";
+      });
     }
   }
 
@@ -132,7 +111,7 @@ class _LogInState extends State<LogIn> {
                 height: 100,
                 width: 100,
                 decoration: BoxDecoration(
-                  borderRadius: BorderRadius.circular(70),
+                  borderRadius: BorderRadius.circular(50),
                   color: Colors.white.withOpacity(0.75),
                 ),
                 child: Image.asset('img/Mirsad2.png'),
@@ -148,64 +127,79 @@ class _LogInState extends State<LogIn> {
               ),
               SizedBox(height: 30),
 
-              // Form fields
+              // Email Form field
               TextFormField(
-                controller: emailController, // Updated to usernameController
+                controller: emailController,
                 decoration: InputDecoration(
-                  hintText: 'E-mail', // Changed hint text to Username
+                  hintText: 'E-mail',
                   hintStyle: TextStyle(
-                    fontSize: 12,
-                    color: Colors.white.withOpacity(0.83),
-                  ),
-                  contentPadding:
-                      EdgeInsets.symmetric(vertical: 2, horizontal: 20),
+                   color: Color.fromARGB(255, 145, 143, 143),
+                    fontSize: 15,
+                    ),
+                  contentPadding: EdgeInsets.symmetric(vertical: 2, horizontal: 20),
                   filled: true,
                   fillColor: Colors.white.withOpacity(0.28),
-                  border: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(13.0),
-                    borderSide: BorderSide.none,
+    enabledBorder: OutlineInputBorder(
+      borderRadius: BorderRadius.circular(13.0),
+      borderSide: BorderSide(
+        color: Colors.white, // Set default enabled border color to white
+      ),
+    ),
+    focusedBorder: OutlineInputBorder(
+      borderRadius: BorderRadius.circular(13.0),
+      borderSide: BorderSide(color: Colors.white), // Default border color white
                   ),
+                  errorText: emailErrorMessage, // Show error message
                 ),
               ),
               SizedBox(height: 15),
+
+              // Password Form field
               TextFormField(
                 controller: passwordController,
                 decoration: InputDecoration(
                   hintText: 'Password',
                   hintStyle: TextStyle(
-                    fontSize: 12,
-                    color: Colors.white.withOpacity(0.83),
-                  ),
-                  contentPadding:
-                      EdgeInsets.symmetric(vertical: 2, horizontal: 20),
+                   color: Color.fromARGB(255, 145, 143, 143),
+                    fontSize: 15,
+                    ),
+                  contentPadding: EdgeInsets.symmetric(vertical: 2, horizontal: 20),
                   filled: true,
                   fillColor: Colors.white.withOpacity(0.28),
-                  border: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(13.0),
-                    borderSide: BorderSide.none,
+    enabledBorder: OutlineInputBorder(
+      borderRadius: BorderRadius.circular(13.0),
+      borderSide: BorderSide(
+        color: Colors.white, // Set default enabled border color to white
+      ),
+    ),
+    focusedBorder: OutlineInputBorder(
+      borderRadius: BorderRadius.circular(13.0),
+      borderSide: BorderSide(color: Colors.white), // Default border color white
                   ),
+                  errorText: passwordErrorMessage, // Show error message
                 ),
                 obscureText: true, // For password security
               ),
               SizedBox(height: 25),
-                                   // Forget your password link
-                  Align(
-                    alignment: Alignment.centerRight,  
-                    child: TextButton(
-                      onPressed: () {
-                        Navigator.push(
-                          context,
-                          MaterialPageRoute(builder: (context) => ResetPass()), // Navigate to ResetPass
-                        );
-                      },
-                      child: const Text(
-                        'Forget your password?',
-                        style: TextStyle(color: Colors.white),
-                      ),
-                    ),
-                  ),
 
-                  const SizedBox(height: 30),
+              // Forget your password link
+              Align(
+                alignment: Alignment.centerRight,
+                child: TextButton(
+                  onPressed: () {
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(builder: (context) => ResetPass()),
+                    );
+                  },
+                  child: const Text(
+                    'Forget your password?',
+                    style: (TextStyle(color: Colors.white)
+                    ),  
+                  ),
+                ),
+              ),
+              const SizedBox(height: 30),
 
               // Login button
               MaterialButton(
@@ -231,20 +225,20 @@ class _LogInState extends State<LogIn> {
                     style: TextStyle(
                       color: Colors.white.withOpacity(0.85),
                       fontSize: 13,
+                      fontWeight: FontWeight.bold,
                     ),
                   ),
                   TextButton(
                     onPressed: () {
                       Navigator.pushReplacement(
-                          context,
-                          MaterialPageRoute(
-                              builder: (context) => const SignUp()));
+                          context, MaterialPageRoute(builder: (context) => const SignUp()));
                     },
                     child: Text(
                       'Sign up',
                       style: TextStyle(
-                        color: Color.fromARGB(255, 255, 255, 255),
+                        color: Color(0xFF2184FC),
                         fontSize: 13,
+                        fontWeight: FontWeight.bold,
                       ),
                     ),
                   ),

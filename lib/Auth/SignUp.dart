@@ -1,13 +1,12 @@
-// ignore_for_file: unused_import
-
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
-import 'package:flutter/material.dart'; 
-import 'package:crypto/crypto.dart'; // For hashing the password
-import 'dart:convert'; // For utf8.encode
+import 'package:flutter/material.dart';
+import 'package:crypto/crypto.dart';
+import 'dart:convert';
 import 'package:mirsad/Auth/LogIn.dart';
+import 'package:mirsad/Auth/Profile.dart';
 
-class SignUp extends StatefulWidget { 
+class SignUp extends StatefulWidget {
   const SignUp({super.key});
 
   @override
@@ -18,29 +17,18 @@ class _SignUpState extends State<SignUp> {
   final FirebaseAuth _auth = FirebaseAuth.instance;
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
 
-  // Controllers for the form fields
   TextEditingController usernameController = TextEditingController();
   TextEditingController emailController = TextEditingController();
-  TextEditingController phoneController = TextEditingController();
   TextEditingController passwordController = TextEditingController();
+  TextEditingController reenterPasswordController = TextEditingController();
 
-  // Variables to track password validation
-  bool isPasswordValid = false;
-  bool hasUppercase = false;
-  bool hasLowercase = false;
-  bool hasNumber = false;
-  bool hasSpecialChar = false;
-  bool hasMinLength = false;
+  // Variables for form validation
+  bool isPasswordValid = true;
+  bool isReenteredPasswordMatching = true;
+  bool isEmailValid = true;
+  bool isUsernameValid = true;
 
-  // Form key for validation
   final _formKey = GlobalKey<FormState>();
-
-  // Function to validate phone number
-  bool isValidPhoneNumber(String phoneNumber) {
-    return phoneNumber.startsWith('05') &&
-        phoneNumber.length == 10 &&
-        RegExp(r'^[0-9]+$').hasMatch(phoneNumber);
-  }
 
   // Function to validate email
   bool isValidEmail(String email) {
@@ -49,8 +37,15 @@ class _SignUpState extends State<SignUp> {
 
   // Function to hash the password
   String hashPassword(String password) {
-    var bytes = utf8.encode(password); // Convert the password to bytes
-    return sha256.convert(bytes).toString(); // Hash the password using SHA256
+    var bytes = utf8.encode(password);
+    return sha256.convert(bytes).toString();
+  }
+
+  // Function to validate the password structure 
+  bool validatePasswordStructure(String password) {
+    String pattern = r'^(?=.*?[0-9])(?=.*?[!@#\$&*~]).{8,}$'; 
+    RegExp regExp = RegExp(pattern);
+    return regExp.hasMatch(password);
   }
 
   // Function to show loading dialog
@@ -62,132 +57,71 @@ class _SignUpState extends State<SignUp> {
     );
   }
 
-  // Function to show pop-up messages
-  void _showPopUpMessage(BuildContext context, String message) {
-    showDialog(
-      context: context,
-      builder: (context) {
-        return AlertDialog(
-          title: Text("Invalid Input"),
-          content: Text(message),
-          actions: [
-            TextButton(
-              child: Text("OK"),
-              onPressed: () {
-                Navigator.of(context).pop();
-              },
-            )
-          ],
-        );
-      },
-    );
+  void _signUp() async {
+  String username = usernameController.text.trim();
+  String email = emailController.text.trim();
+  String password = passwordController.text.trim();
+  String reenteredPassword = reenterPasswordController.text.trim();
+
+  // Validate form inputs
+  setState(() {
+    isUsernameValid = username.isNotEmpty;
+    isEmailValid = isValidEmail(email); // Validate format
+    isPasswordValid = validatePasswordStructure(password);
+    isReenteredPasswordMatching = password == reenteredPassword;
+  });
+
+  // Check if any of the fields are invalid
+  if (!isUsernameValid || !isEmailValid || !isPasswordValid || !isReenteredPasswordMatching) {
+    return; // If there are validation issues, exit without trying to sign up
   }
 
-  // Function to check if username, email, and phone are unique
-  Future<bool> isUnique(String username, String email, String phone) async {
-    QuerySnapshot usernameSnapshot = await _firestore
-        .collection('users')
-        .where('username', isEqualTo: username)
-        .get();
-    QuerySnapshot emailSnapshot = await _firestore
-        .collection('users')
-        .where('email', isEqualTo: email)
-        .get();
-    QuerySnapshot phoneSnapshot = await _firestore
-        .collection('users')
-        .where('phone', isEqualTo: phone)
-        .get();
+  try {
+    _showLoadingDialog(context);
 
-    if (usernameSnapshot.docs.isNotEmpty) {
-      _showPopUpMessage(context, 'Username is already taken');
-      return false;
+    // Check if the email is already in use via FirebaseAuth
+    List<String> signInMethods = await _auth.fetchSignInMethodsForEmail(email);
+    if (signInMethods.isNotEmpty) {
+      // Email is already in use
+      setState(() {
+        isEmailValid = false; // Mark email as invalid to trigger the red outline
+      });
+      Navigator.pop(context); // Close the loading dialog
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+        content: Text('Email is already in use. Please choose another.'),
+        backgroundColor: Colors.red,
+      ));
+      return;
     }
 
-    if (emailSnapshot.docs.isNotEmpty) {
-      _showPopUpMessage(context, 'Email is already taken');
-      return false;
-    }
+    // Proceed with user creation if email is valid and not in use
+    String hashedPassword = hashPassword(password);
+    UserCredential userCredential = await _auth.createUserWithEmailAndPassword(
+        email: email, password: password);
 
-    if (phoneSnapshot.docs.isNotEmpty) {
-      _showPopUpMessage(context, 'Phone number is already taken');
-      return false;
-    }
+    // Save user information in Firestore
+    await _firestore.collection('users').doc(userCredential.user!.uid).set({
+      'uid': userCredential.user!.uid,
+      'username': username,
+      'email': email,
+      'password': hashedPassword,
+    });
 
-    return true;
+    Navigator.pop(context); // Close the loading dialog
+    ScaffoldMessenger.of(context)
+        .showSnackBar(SnackBar(content: Text('Sign-up successful!')));
+    Navigator.pushReplacement(
+        context, MaterialPageRoute(builder: (context) => const Profile()));
+  } catch (e) {
+    Navigator.pop(context);
+    // Handle other error cases if needed
+    ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+      content: Text('An error occurred. Please try again later.'),
+      backgroundColor: Colors.red,
+    ));
   }
-
-  bool validateStructure(String value) {
-  String pattern = r'^(?=.*?[A-Z])(?=.*?[a-z])(?=.*?[0-9])(?=.*?[!@#\$&*~]).{8,}$';
-  RegExp regExp = new RegExp(pattern);
-  return regExp.hasMatch(value);
 }
 
-  // Function to handle sign-up
-  void _signUp() async {
-    
-    String username = usernameController.text.trim();
-    String email = emailController.text.trim();
-    String phone = phoneController.text.trim();
-    String password = passwordController.text.trim();
-
-    if (username.isEmpty || email.isEmpty || phone.isEmpty || password.isEmpty) {
-      _showPopUpMessage(context, 'Please fill all fields');
-      return;
-    }
-
-    if (!isValidPhoneNumber(phone)) {
-      _showPopUpMessage(context,
-          'Phone number must start with 05 and be 10 digits long');
-      return;
-    }
-
-    if (!isValidEmail(email)) {
-      _showPopUpMessage(context, 'Please enter a valid email address');
-      return;
-    }
-
-    // Validate password structure
-  if (!validateStructure(password)) {
-    _showPopUpMessage(context, 'Password must be at least 8 characters long, '
-        'and include at least one uppercase letter, one lowercase letter, '
-        'one digit, and one special character.');
-    return;
-  }
-
-    _showLoadingDialog(context);
-    bool unique = await isUnique(username, email, phone);
-    Navigator.pop(context);
-
-    if (!unique) return;
-
-    try {
-      _showLoadingDialog(context);
-      String hashedPassword = hashPassword(password);
-
-      UserCredential userCredential = await _auth
-          .createUserWithEmailAndPassword(email: email, password: password);
-
-      await _firestore.collection('users').doc(userCredential.user!.uid).set({
-        'uid': userCredential.user!.uid,
-        'username': username,
-        'email': email,
-        'phone': phone,
-        'password': hashedPassword,
-      }).then((value) {
-        Navigator.pop(context);
-        ScaffoldMessenger.of(context)
-            .showSnackBar(SnackBar(content: Text('Sign-up successful!')));
-        Navigator.pushReplacement(
-            context, MaterialPageRoute(builder: (context) => const LogIn()));
-      }).catchError((error) {
-        Navigator.pop(context);
-        _showPopUpMessage(context, 'Failed to store user data: $error');
-      });
-    } catch (e) {
-      Navigator.pop(context);
-      _showPopUpMessage(context, 'Error: $e');
-    }
-  }
 
   @override
   Widget build(BuildContext context) {
@@ -198,12 +132,12 @@ class _SignUpState extends State<SignUp> {
             begin: Alignment.topCenter,
             end: Alignment.bottomCenter,
             colors: [
-              Color(0xFF1D76E2), // #1D76E2
-              Color(0xFF2184FC), // #2184FC
-              Color(0xFF4D9CFC), // #4D9CFC
-              Color(0xFF7DB4F6), // #7DB4F6
-              Color(0xFFC1DDFF), // #C1DDFF
-              Color(0xFFD9D9D9), // #D9D9D9
+              Color(0xFF1D76E2),
+              Color(0xFF2184FC),
+              Color(0xFF4D9CFC),
+              Color(0xFF7DB4F6),
+              Color(0xFFC1DDFF),
+              Color(0xFFD9D9D9),
             ],
           ),
         ),
@@ -217,7 +151,7 @@ class _SignUpState extends State<SignUp> {
                 height: 100,
                 width: 100,
                 decoration: BoxDecoration(
-                  borderRadius: BorderRadius.circular(70),
+                  borderRadius: BorderRadius.circular(50),
                   color: Colors.white.withOpacity(0.75),
                 ),
                 child: Image.asset('img/Mirsad2.png'),
@@ -233,82 +167,123 @@ class _SignUpState extends State<SignUp> {
               ),
               SizedBox(height: 30),
 
-              //Form fields
+              // Username field
+              Text("Username", style: TextStyle(color: Colors.white)),
               TextFormField(
                 controller: usernameController,
                 decoration: InputDecoration(
-                  hintText: 'Username',
+                  hintText: 'Enter your username',
                   hintStyle: TextStyle(
-                    fontSize: 12,
-                    color: Colors.white.withOpacity(0.83),
-                  ),
-                  contentPadding:
-                      EdgeInsets.symmetric(vertical: 2, horizontal: 20),
+                   color: Color.fromARGB(255, 145, 143, 143),
+                    fontSize: 15,
+                    ),
+                  errorText: isUsernameValid ? null : "Username can't be empty",
                   filled: true,
-                  fillColor: Colors.white.withOpacity(0.28),
-                  border: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(13.0),
-                    borderSide: BorderSide.none,
+    fillColor: Colors.white.withOpacity(0.28),
+    enabledBorder: OutlineInputBorder(
+      borderRadius: BorderRadius.circular(13.0),
+      borderSide: BorderSide(
+        color: Colors.white, // Set default enabled border color to white
+      ),
+    ),
+    focusedBorder: OutlineInputBorder(
+      borderRadius: BorderRadius.circular(13.0),
+      borderSide: BorderSide(
+                        color: isUsernameValid ? Colors.white : Colors.red),
                   ),
                 ),
               ),
               SizedBox(height: 15),
-              TextFormField(
-                controller: emailController,
-                decoration: InputDecoration(
-                  hintText: 'E-mail',
-                  hintStyle: TextStyle(
-                    fontSize: 12,
-                    color: Colors.white.withOpacity(0.83),
-                  ),
-                  contentPadding:
-                      EdgeInsets.symmetric(vertical: 2, horizontal: 20),
-                  filled: true,
-                  fillColor: Colors.white.withOpacity(0.28),
-                  border: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(13.0),
-                    borderSide: BorderSide.none,
-                  ),
-                ),
-              ),
+
+              // Email field
+Text("E-mail", style: TextStyle(color: Colors.white)),
+TextFormField(
+  controller: emailController,
+  decoration: InputDecoration(
+    hintText: 'Enter your email',
+    hintStyle: TextStyle(
+      color: Color.fromARGB(255, 145, 143, 143),
+      fontSize: 15,
+    ),
+    errorText: isEmailValid ? null : "This email is already taken or invalid",
+    filled: true,
+    fillColor: Colors.white.withOpacity(0.28),
+    enabledBorder: OutlineInputBorder(
+      borderRadius: BorderRadius.circular(13.0),
+      borderSide: BorderSide(
+        color: Colors.white, // Set default enabled border color to white
+      ),
+    ),
+    focusedBorder: OutlineInputBorder(
+      borderRadius: BorderRadius.circular(13.0),
+      borderSide: BorderSide(
+        color: isEmailValid ? Colors.white : Colors.red, // Change to red if invalid when focused
+      ),
+    ),
+  ),
+),
               SizedBox(height: 15),
-              TextFormField(
-                controller: phoneController,
-                decoration: InputDecoration(
-                  hintText: 'Phone Number',
-                  hintStyle: TextStyle(
-                    fontSize: 12,
-                    color: Colors.white.withOpacity(0.83),
-                  ),
-                  contentPadding:
-                      EdgeInsets.symmetric(vertical: 2, horizontal: 20),
-                  filled: true,
-                  fillColor: Colors.white.withOpacity(0.28),
-                  border: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(13.0),
-                    borderSide: BorderSide.none,
-                  ),
-                ),
-              ),
-              SizedBox(height: 15),
+
+              // Password field
+              Text("Password", style: TextStyle(color: Colors.white)),
               TextFormField(
                 controller: passwordController,
                 decoration: InputDecoration(
-                  hintText: 'Password',
-                  hintStyle: TextStyle(
-                    fontSize: 12,
-                    color: Colors.white.withOpacity(0.83),
-                  ),
-                  contentPadding:
-                      EdgeInsets.symmetric(vertical: 2, horizontal: 20),
+                  hintText: 'password at least 8 letters includes (number,special character)',
+                   hintStyle: TextStyle(
+                   color: Color.fromARGB(255, 145, 143, 143),
+                    fontSize: 15,
+                    ), 
+                  errorText: isPasswordValid
+                      ? null
+                      : "Password must be at least 8 characters long, contain a number and a symbol",
                   filled: true,
-                  fillColor: Colors.white.withOpacity(0.28),
-                  border: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(13.0),
-                    borderSide: BorderSide.none,
+    fillColor: Colors.white.withOpacity(0.28),
+    enabledBorder: OutlineInputBorder(
+      borderRadius: BorderRadius.circular(13.0),
+      borderSide: BorderSide(
+        color: Colors.white, // Set default enabled border color to white
+      ),
+    ),
+    focusedBorder: OutlineInputBorder(
+      borderRadius: BorderRadius.circular(13.0),
+      borderSide: BorderSide(
+                        color: isPasswordValid ? Colors.white : Colors.red,),
                   ),
                 ),
-                obscureText: true, // For password security
+                obscureText: true,
+              ),
+              SizedBox(height: 15),
+
+              // Re-enter password field
+              Text("Re-enter Password", style: TextStyle(color: Colors.white)),
+              TextFormField(
+                controller: reenterPasswordController,
+                decoration: InputDecoration(
+                  hintText: 'Re-enter your password',
+                   hintStyle: TextStyle(
+                   color: Color.fromARGB(255, 145, 143, 143),
+                    fontSize: 15,
+                    ), 
+                  errorText: isReenteredPasswordMatching
+                      ? null
+                      : "Passwords do not match",
+                  filled: true,
+                  fillColor: Colors.white.withOpacity(0.28),
+    enabledBorder: OutlineInputBorder(
+      borderRadius: BorderRadius.circular(13.0),
+      borderSide: BorderSide(
+        color: Colors.white, // Set default enabled border color to white
+      ),
+    ),
+    focusedBorder: OutlineInputBorder(
+      borderRadius: BorderRadius.circular(13.0),
+      borderSide: BorderSide(
+                        color: isReenteredPasswordMatching
+                            ? Colors.white : Colors.red),
+                  ),
+                ),
+                obscureText: true,
               ),
               SizedBox(height: 25),
 
@@ -334,28 +309,28 @@ class _SignUpState extends State<SignUp> {
                   Text(
                     'Already have an account?',
                     style: TextStyle(
-                      color: Colors.white.withOpacity(0.85),
-                      fontSize: 13,
+                      color: Colors.white.withOpacity(0.8), 
+                      fontWeight: FontWeight.bold, 
+                      fontSize: 13, 
                     ),
                   ),
                   TextButton(
                     onPressed: () {
-                      Navigator.pushReplacement(
-                          context,
-                          MaterialPageRoute(
-                              builder: (context) => const LogIn()));
+                      Navigator.pushReplacement(context,
+                          MaterialPageRoute(builder: (context) => const LogIn()));
                     },
                     child: Text(
-                      'Log in',
+                      'Log In',
                       style: TextStyle(
-                        color: Color.fromARGB(255, 255, 255, 255),
+                        color: Color(0xFF2184FC),
+                        fontWeight: FontWeight.bold, 
                         fontSize: 13,
                       ),
                     ),
                   ),
                 ],
               ),
-              SizedBox(height: 35),
+              SizedBox(height: 15),
             ],
           ),
         ),
