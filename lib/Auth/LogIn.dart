@@ -66,9 +66,16 @@ class _LogInState extends State<LogIn> {
       );
 
       // Check if the user exists in Firestore
-      DocumentSnapshot userDoc = await _firestore.collection('users').doc(userCredential.user!.uid).get();
+      DocumentSnapshot userDoc = await _firestore
+          .collection('users')
+          .doc(userCredential.user!.uid)
+          .get();
       if (userDoc.exists) {
-        Navigator.pushReplacement(context, MaterialPageRoute(builder: (context) => const Profile())); // Replace with Home or Profile
+        Navigator.pushReplacement(
+            context, MaterialPageRoute(builder: (context) => const Profile()));
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+            content:
+                Text('Login successful!'))); // Replace with Home or Profile
       } else {
         setState(() {
           emailErrorMessage = "Email or password is incorrect";
@@ -134,21 +141,24 @@ class _LogInState extends State<LogIn> {
                 decoration: InputDecoration(
                   hintText: 'E-mail',
                   hintStyle: TextStyle(
-                   color: Color.fromARGB(255, 145, 143, 143),
+                    color: Color.fromARGB(255, 145, 143, 143),
                     fontSize: 15,
-                    ),
-                  contentPadding: EdgeInsets.symmetric(vertical: 2, horizontal: 20),
+                  ),
+                  contentPadding:
+                      EdgeInsets.symmetric(vertical: 2, horizontal: 20),
                   filled: true,
                   fillColor: Colors.white.withOpacity(0.28),
-    enabledBorder: OutlineInputBorder(
-      borderRadius: BorderRadius.circular(13.0),
-      borderSide: BorderSide(
-        color: Colors.white, // Set default enabled border color to white
-      ),
-    ),
-    focusedBorder: OutlineInputBorder(
-      borderRadius: BorderRadius.circular(13.0),
-      borderSide: BorderSide(color: Colors.white), // Default border color white
+                  enabledBorder: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(13.0),
+                    borderSide: BorderSide(
+                      color: Colors
+                          .white, // Set default enabled border color to white
+                    ),
+                  ),
+                  focusedBorder: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(13.0),
+                    borderSide: BorderSide(
+                        color: Colors.white), // Default border color white
                   ),
                   errorText: emailErrorMessage, // Show error message
                 ),
@@ -162,21 +172,24 @@ class _LogInState extends State<LogIn> {
                 decoration: InputDecoration(
                   hintText: 'Password',
                   hintStyle: TextStyle(
-                   color: Color.fromARGB(255, 145, 143, 143),
+                    color: Color.fromARGB(255, 145, 143, 143),
                     fontSize: 15,
-                    ),
-                  contentPadding: EdgeInsets.symmetric(vertical: 2, horizontal: 20),
+                  ),
+                  contentPadding:
+                      EdgeInsets.symmetric(vertical: 2, horizontal: 20),
                   filled: true,
                   fillColor: Colors.white.withOpacity(0.28),
-    enabledBorder: OutlineInputBorder(
-      borderRadius: BorderRadius.circular(13.0),
-      borderSide: BorderSide(
-        color: Colors.white, // Set default enabled border color to white
-      ),
-    ),
-    focusedBorder: OutlineInputBorder(
-      borderRadius: BorderRadius.circular(13.0),
-      borderSide: BorderSide(color: Colors.white), // Default border color white
+                  enabledBorder: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(13.0),
+                    borderSide: BorderSide(
+                      color: Colors
+                          .white, // Set default enabled border color to white
+                    ),
+                  ),
+                  focusedBorder: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(13.0),
+                    borderSide: BorderSide(
+                        color: Colors.white), // Default border color white
                   ),
                   errorText: passwordErrorMessage, // Show error message
                 ),
@@ -196,8 +209,7 @@ class _LogInState extends State<LogIn> {
                   },
                   child: const Text(
                     'Forget your password?',
-                    style: (TextStyle(color: Colors.white)
-                    ),  
+                    style: (TextStyle(color: Colors.white)),
                   ),
                 ),
               ),
@@ -218,7 +230,7 @@ class _LogInState extends State<LogIn> {
               ),
               SizedBox(height: 25),
 
-              // No account?
+              // No accsount?
               Row(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
@@ -233,7 +245,9 @@ class _LogInState extends State<LogIn> {
                   TextButton(
                     onPressed: () {
                       Navigator.pushReplacement(
-                          context, MaterialPageRoute(builder: (context) => const SignUp()));
+                          context,
+                          MaterialPageRoute(
+                              builder: (context) => const SignUp()));
                     },
                     child: Text(
                       'Sign up',
