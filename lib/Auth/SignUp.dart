@@ -41,9 +41,9 @@ class _SignUpState extends State<SignUp> {
     return sha256.convert(bytes).toString();
   }
 
-  // Function to validate the password structure 
+  // Function to validate the password structure
   bool validatePasswordStructure(String password) {
-    String pattern = r'^(?=.*?[0-9])(?=.*?[!@#\$&*~]).{8,}$'; 
+    String pattern = r'^(?=.*?[0-9])(?=.*?[!@#\$&*~]).{8,}$';
     RegExp regExp = RegExp(pattern);
     return regExp.hasMatch(password);
   }
@@ -58,70 +58,74 @@ class _SignUpState extends State<SignUp> {
   }
 
   void _signUp() async {
-  String username = usernameController.text.trim();
-  String email = emailController.text.trim();
-  String password = passwordController.text.trim();
-  String reenteredPassword = reenterPasswordController.text.trim();
+    String username = usernameController.text.trim();
+    String email = emailController.text.trim();
+    String password = passwordController.text.trim();
+    String reenteredPassword = reenterPasswordController.text.trim();
 
-  // Validate form inputs
-  setState(() {
-    isUsernameValid = username.isNotEmpty;
-    isEmailValid = isValidEmail(email); // Validate format
-    isPasswordValid = validatePasswordStructure(password);
-    isReenteredPasswordMatching = password == reenteredPassword;
-  });
-
-  // Check if any of the fields are invalid
-  if (!isUsernameValid || !isEmailValid || !isPasswordValid || !isReenteredPasswordMatching) {
-    return; // If there are validation issues, exit without trying to sign up
-  }
-
-  try {
-    _showLoadingDialog(context);
-
-    // Check if the email is already in use via FirebaseAuth
-    List<String> signInMethods = await _auth.fetchSignInMethodsForEmail(email);
-    if (signInMethods.isNotEmpty) {
-      // Email is already in use
-      setState(() {
-        isEmailValid = false; // Mark email as invalid to trigger the red outline
-      });
-      Navigator.pop(context); // Close the loading dialog
-      ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-        content: Text('Email is already in use. Please choose another.'),
-        backgroundColor: Colors.red,
-      ));
-      return;
-    }
-
-    // Proceed with user creation if email is valid and not in use
-    String hashedPassword = hashPassword(password);
-    UserCredential userCredential = await _auth.createUserWithEmailAndPassword(
-        email: email, password: password);
-
-    // Save user information in Firestore
-    await _firestore.collection('users').doc(userCredential.user!.uid).set({
-      'uid': userCredential.user!.uid,
-      'username': username,
-      'email': email,
-      'password': hashedPassword,
+    // Validate form inputs
+    setState(() {
+      isUsernameValid = username.isNotEmpty;
+      isEmailValid = isValidEmail(email); // Validate format
+      isPasswordValid = validatePasswordStructure(password);
+      isReenteredPasswordMatching = password == reenteredPassword;
     });
 
-    Navigator.pop(context); // Close the loading dialog
-    ScaffoldMessenger.of(context)
-        .showSnackBar(SnackBar(content: Text('Sign-up successful!')));
-    Navigator.pushReplacement(
-        context, MaterialPageRoute(builder: (context) => const Profile()));
-  } catch (e) {
-    Navigator.pop(context);
-    // Handle other error cases if needed
-    ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-      content: Text('An error occurred. Please try again later.'),
-      backgroundColor: Colors.red,
-    ));
-  }
-}
+    // Check if any of the fields are invalid
+    if (!isUsernameValid ||
+        !isEmailValid ||
+        !isPasswordValid ||
+        !isReenteredPasswordMatching) {
+      return; // If there are validation issues, exit without trying to sign up
+    }
 
+    try {
+      _showLoadingDialog(context);
+
+      // Check if the email is already in use via FirebaseAuth
+      List<String> signInMethods =
+          await _auth.fetchSignInMethodsForEmail(email);
+      if (signInMethods.isNotEmpty) {
+        // Email is already in use
+        setState(() {
+          isEmailValid =
+              false; // Mark email as invalid to trigger the red outline
+        });
+        Navigator.pop(context); // Close the loading dialog
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+          content: Text('Email is already in use. Please choose another.'),
+          backgroundColor: Colors.red,
+        ));
+        return;
+      }
+
+      // Proceed with user creation if email is valid and not in use
+      String hashedPassword = hashPassword(password);
+      UserCredential userCredential = await _auth
+          .createUserWithEmailAndPassword(email: email, password: password);
+
+      // Save user information in Firestore
+      await _firestore.collection('users').doc(userCredential.user!.uid).set({
+        'uid': userCredential.user!.uid,
+        'username': username,
+        'email': email,
+        'password': hashedPassword,
+      });
+
+      Navigator.pop(context); // Close the loading dialog
+      ScaffoldMessenger.of(context)
+          .showSnackBar(SnackBar(content: Text('Sign-up successful!')));
+      Navigator.pushReplacement(
+          context, MaterialPageRoute(builder: (context) => const Profile()));
+    } catch (e) {
+      Navigator.pop(context);
+      // Handle other error cases if needed
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+        content: Text('An error occurred. Please try again later.'),
+        backgroundColor: Colors.red,
+      ));
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -149,7 +153,6 @@ class _SignUpState extends State<SignUp> {
               SizedBox(height: 50), // padding above logo
               Container(
                 height: 100,
-                width: 100,
                 decoration: BoxDecoration(
                   borderRadius: BorderRadius.circular(50),
                   color: Colors.white.withOpacity(0.75),
@@ -174,21 +177,22 @@ class _SignUpState extends State<SignUp> {
                 decoration: InputDecoration(
                   hintText: 'Enter your username',
                   hintStyle: TextStyle(
-                   color: Color.fromARGB(255, 145, 143, 143),
+                    color: Color.fromARGB(255, 145, 143, 143),
                     fontSize: 15,
-                    ),
+                  ),
                   errorText: isUsernameValid ? null : "Username can't be empty",
                   filled: true,
-    fillColor: Colors.white.withOpacity(0.28),
-    enabledBorder: OutlineInputBorder(
-      borderRadius: BorderRadius.circular(13.0),
-      borderSide: BorderSide(
-        color: Colors.white, // Set default enabled border color to white
-      ),
-    ),
-    focusedBorder: OutlineInputBorder(
-      borderRadius: BorderRadius.circular(13.0),
-      borderSide: BorderSide(
+                  fillColor: Colors.white.withOpacity(0.28),
+                  enabledBorder: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(13.0),
+                    borderSide: BorderSide(
+                      color: Colors
+                          .white, // Set default enabled border color to white
+                    ),
+                  ),
+                  focusedBorder: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(13.0),
+                    borderSide: BorderSide(
                         color: isUsernameValid ? Colors.white : Colors.red),
                   ),
                 ),
@@ -196,32 +200,37 @@ class _SignUpState extends State<SignUp> {
               SizedBox(height: 15),
 
               // Email field
-Text("E-mail", style: TextStyle(color: Colors.white)),
-TextFormField(
-  controller: emailController,
-  decoration: InputDecoration(
-    hintText: 'Enter your email',
-    hintStyle: TextStyle(
-      color: Color.fromARGB(255, 145, 143, 143),
-      fontSize: 15,
-    ),
-    errorText: isEmailValid ? null : "This email is already taken or invalid",
-    filled: true,
-    fillColor: Colors.white.withOpacity(0.28),
-    enabledBorder: OutlineInputBorder(
-      borderRadius: BorderRadius.circular(13.0),
-      borderSide: BorderSide(
-        color: Colors.white, // Set default enabled border color to white
-      ),
-    ),
-    focusedBorder: OutlineInputBorder(
-      borderRadius: BorderRadius.circular(13.0),
-      borderSide: BorderSide(
-        color: isEmailValid ? Colors.white : Colors.red, // Change to red if invalid when focused
-      ),
-    ),
-  ),
-),
+              Text("E-mail", style: TextStyle(color: Colors.white)),
+              TextFormField(
+                controller: emailController,
+                decoration: InputDecoration(
+                  hintText: 'Enter your email',
+                  hintStyle: TextStyle(
+                    color: Color.fromARGB(255, 145, 143, 143),
+                    fontSize: 15,
+                  ),
+                  errorText: isEmailValid
+                      ? null
+                      : "This email is already taken or invalid",
+                  filled: true,
+                  fillColor: Colors.white.withOpacity(0.28),
+                  enabledBorder: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(13.0),
+                    borderSide: BorderSide(
+                      color: Colors
+                          .white, // Set default enabled border color to white
+                    ),
+                  ),
+                  focusedBorder: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(13.0),
+                    borderSide: BorderSide(
+                      color: isEmailValid
+                          ? Colors.white
+                          : Colors.red, // Change to red if invalid when focused
+                    ),
+                  ),
+                ),
+              ),
               SizedBox(height: 15),
 
               // Password field
@@ -229,26 +238,29 @@ TextFormField(
               TextFormField(
                 controller: passwordController,
                 decoration: InputDecoration(
-                  hintText: 'password at least 8 letters includes (number,special character)',
-                   hintStyle: TextStyle(
-                   color: Color.fromARGB(255, 145, 143, 143),
+                  hintText:
+                      'password at least 8 letters includes (number,special character)',
+                  hintStyle: TextStyle(
+                    color: Color.fromARGB(255, 145, 143, 143),
                     fontSize: 15,
-                    ), 
+                  ),
                   errorText: isPasswordValid
                       ? null
                       : "Password must be at least 8 characters long, contain a number and a symbol",
                   filled: true,
-    fillColor: Colors.white.withOpacity(0.28),
-    enabledBorder: OutlineInputBorder(
-      borderRadius: BorderRadius.circular(13.0),
-      borderSide: BorderSide(
-        color: Colors.white, // Set default enabled border color to white
-      ),
-    ),
-    focusedBorder: OutlineInputBorder(
-      borderRadius: BorderRadius.circular(13.0),
-      borderSide: BorderSide(
-                        color: isPasswordValid ? Colors.white : Colors.red,),
+                  fillColor: Colors.white.withOpacity(0.28),
+                  enabledBorder: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(13.0),
+                    borderSide: BorderSide(
+                      color: Colors
+                          .white, // Set default enabled border color to white
+                    ),
+                  ),
+                  focusedBorder: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(13.0),
+                    borderSide: BorderSide(
+                      color: isPasswordValid ? Colors.white : Colors.red,
+                    ),
                   ),
                 ),
                 obscureText: true,
@@ -261,26 +273,28 @@ TextFormField(
                 controller: reenterPasswordController,
                 decoration: InputDecoration(
                   hintText: 'Re-enter your password',
-                   hintStyle: TextStyle(
-                   color: Color.fromARGB(255, 145, 143, 143),
+                  hintStyle: TextStyle(
+                    color: Color.fromARGB(255, 145, 143, 143),
                     fontSize: 15,
-                    ), 
+                  ),
                   errorText: isReenteredPasswordMatching
                       ? null
                       : "Passwords do not match",
                   filled: true,
                   fillColor: Colors.white.withOpacity(0.28),
-    enabledBorder: OutlineInputBorder(
-      borderRadius: BorderRadius.circular(13.0),
-      borderSide: BorderSide(
-        color: Colors.white, // Set default enabled border color to white
-      ),
-    ),
-    focusedBorder: OutlineInputBorder(
-      borderRadius: BorderRadius.circular(13.0),
-      borderSide: BorderSide(
+                  enabledBorder: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(13.0),
+                    borderSide: BorderSide(
+                      color: Colors
+                          .white, // Set default enabled border color to white
+                    ),
+                  ),
+                  focusedBorder: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(13.0),
+                    borderSide: BorderSide(
                         color: isReenteredPasswordMatching
-                            ? Colors.white : Colors.red),
+                            ? Colors.white
+                            : Colors.red),
                   ),
                 ),
                 obscureText: true,
@@ -309,21 +323,23 @@ TextFormField(
                   Text(
                     'Already have an account?',
                     style: TextStyle(
-                      color: Colors.white.withOpacity(0.8), 
-                      fontWeight: FontWeight.bold, 
-                      fontSize: 13, 
+                      color: Colors.white.withOpacity(0.8),
+                      fontWeight: FontWeight.bold,
+                      fontSize: 13,
                     ),
                   ),
                   TextButton(
                     onPressed: () {
-                      Navigator.pushReplacement(context,
-                          MaterialPageRoute(builder: (context) => const LogIn()));
+                      Navigator.pushReplacement(
+                          context,
+                          MaterialPageRoute(
+                              builder: (context) => const LogIn()));
                     },
                     child: Text(
                       'Log In',
                       style: TextStyle(
                         color: Color(0xFF2184FC),
-                        fontWeight: FontWeight.bold, 
+                        fontWeight: FontWeight.bold,
                         fontSize: 13,
                       ),
                     ),

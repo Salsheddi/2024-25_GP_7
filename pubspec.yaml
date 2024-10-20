@@ -80,6 +80,7 @@ flutter:
     - img/delete.png
     - img/editProfile.png
     - img/main_page.png
+    - img/reset-password.png
   # An image asset can refer to one or more resolution-specific "variants", see
   # https://flutter.dev/assets-and-images/#resolution-aware
 
