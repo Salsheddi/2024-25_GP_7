@@ -84,13 +84,9 @@ class _SignUpState extends State<SignUp> {
     if (signInMethods.isNotEmpty) {
       // Email is already in use
       setState(() {
-        isEmailValid = false; // Mark email as invalid to trigger the red outline
+        isEmailValid = false; // Mark email as invalid
       });
       Navigator.pop(context); // Close the loading dialog
-      ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-        content: Text('Email is already in use. Please choose another.'),
-        backgroundColor: Colors.red,
-      ));
       return;
     }
 
@@ -114,13 +110,13 @@ class _SignUpState extends State<SignUp> {
         context, MaterialPageRoute(builder: (context) => const Profile()));
   } catch (e) {
     Navigator.pop(context);
-    // Handle other error cases if needed
-    ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-      content: Text('An error occurred. Please try again later.'),
-      backgroundColor: Colors.red,
-    ));
+    setState(() {
+      // Handle other error cases (like general network issues)
+      isEmailValid = false; // Ensure red border for email field
+    });
   }
 }
+
 
 
   @override
@@ -146,7 +142,7 @@ class _SignUpState extends State<SignUp> {
           key: _formKey,
           child: ListView(
             children: [
-              SizedBox(height: 50), // padding above logo
+              SizedBox(height: 30), // padding above logo
               Container(
                 height: 100,
                 width: 100,
@@ -217,11 +213,12 @@ TextFormField(
     focusedBorder: OutlineInputBorder(
       borderRadius: BorderRadius.circular(13.0),
       borderSide: BorderSide(
-        color: isEmailValid ? Colors.white : Colors.red, // Change to red if invalid when focused
+        color: isEmailValid ? Colors.white : Colors.red, // Red outline when email is invalid
       ),
     ),
   ),
 ),
+
               SizedBox(height: 15),
 
               // Password field

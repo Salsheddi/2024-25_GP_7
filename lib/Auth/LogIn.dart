@@ -106,7 +106,7 @@ class _LogInState extends State<LogIn> {
           key: _formKey,
           child: ListView(
             children: [
-              SizedBox(height: 50), // padding above logo
+              SizedBox(height: 30), // padding above logo
               Container(
                 height: 100,
                 width: 100,
@@ -128,6 +128,7 @@ class _LogInState extends State<LogIn> {
               SizedBox(height: 30),
 
               // Email Form field
+              Text("E-mail", style: TextStyle(color: Colors.white)),
               TextFormField(
                 controller: emailController,
                 decoration: InputDecoration(
@@ -155,6 +156,7 @@ class _LogInState extends State<LogIn> {
               SizedBox(height: 15),
 
               // Password Form field
+              Text("Password", style: TextStyle(color: Colors.white)),
               TextFormField(
                 controller: passwordController,
                 decoration: InputDecoration(
