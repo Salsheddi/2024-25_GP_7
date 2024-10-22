@@ -82,7 +82,7 @@ class _ResetPassState extends State<ResetPass> {
 
     // Show error message
     ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text(e.toString())), // Show specific error message
+      SnackBar(content: Text('please fill the field')), // Show specific error message
     );
   }
 }
