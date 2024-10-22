@@ -9,7 +9,10 @@ import 'package:flutter/widgets.dart';
 import 'package:curved_navigation_bar/curved_navigation_bar.dart';
 import 'package:material_design_icons_flutter/material_design_icons_flutter.dart';
 import 'package:mirsad/Auth/LogIn.dart';
+import 'package:mirsad/Auth/ResetPass.dart';
 import 'package:mirsad/Auth/SignUp.dart';
+import 'package:mirsad/Auth/chatbot.dart';
+import 'package:mirsad/Auth/home.dart';
 import 'package:mirsad/main.dart';
 
 class Profile extends StatefulWidget {
@@ -20,8 +23,6 @@ class Profile extends StatefulWidget {
 }
 
 class _ProfileState extends State<Profile> {
-  int _selectedIndex = 2; // Start with the profile page index
-
   final List<Widget> _navigationItem = [
     const Icon(Icons.smart_toy_outlined, size: 32, color: Colors.white),
     const Icon(Icons.home, size: 32, color: Colors.white),
@@ -65,6 +66,7 @@ class _ProfileState extends State<Profile> {
     }
   }
 
+// update username function
   Future<void> _updateUsername() async {
     User? user = FirebaseAuth.instance.currentUser;
     if (user != null) {
@@ -91,11 +93,17 @@ class _ProfileState extends State<Profile> {
 
   Future<void> _resetPassword() async {
     try {
-      if (userEmail != null) {
+      if (userEmail != null && userEmail!.isNotEmpty) {
+        // Send the reset password email
         await FirebaseAuth.instance.sendPasswordResetEmail(email: userEmail!);
 
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Password reset email sent')),
+          SnackBar(content: Text('Password reset email sent to $userEmail')),
+        );
+      } else {
+        // Handle the case where userEmail is null or empty
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Please enter a valid email address.')),
         );
       }
     } catch (e) {
@@ -150,7 +158,7 @@ class _ProfileState extends State<Profile> {
     );
   }
 
-  Future<void> deleteConfirmationDialog(BuildContext context) async {
+  Future<void> DeleteConfirmationDialog(BuildContext context) async {
     return showDialog<void>(
       context: context,
       barrierDismissible: false,
@@ -163,14 +171,13 @@ class _ProfileState extends State<Profile> {
             TextButton(
               child: const Text('Cancel'),
               onPressed: () {
-                Navigator.of(context).pop(); // Close the dialog
+                Navigator.of(context).pop();
               },
             ),
             TextButton(
               child: const Text('Delete'),
               onPressed: () {
-                Navigator.of(context).pop(); // Close the dialog first
-                deleteAccount(context); // Proceed to delete account
+                deleteAccount(context);
               },
             ),
           ],
@@ -183,122 +190,83 @@ class _ProfileState extends State<Profile> {
     User? user = FirebaseAuth.instance.currentUser;
 
     if (user != null) {
-      // Show dialog to get the user's password
-      final password = await showDialog<String>(
-        context: context,
-        builder: (context) {
-          String enteredPassword = '';
-          return AlertDialog(
-            title: const Text('Re-enter Password'),
-            content: TextField(
-              obscureText: true,
-              decoration: const InputDecoration(labelText: 'Password'),
-              onChanged: (value) {
-                enteredPassword = value;
-              },
-            ),
-            actions: [
-              TextButton(
-                onPressed: () => Navigator.pop(context, null), // Cancel action
-                child: const Text('Cancel'),
-              ),
-              TextButton(
-                onPressed: () =>
-                    Navigator.pop(context, enteredPassword), // Submit password
-                child: const Text('Confirm'),
-              ),
-            ],
-          );
-        },
-      );
+      // Show a dialog to get the user's password
+      String? password = await _showPasswordDialog(context);
+      if (password == null) return; // User canceled the password dialog
 
-      if (password != null && password.isNotEmpty) {
-        try {
-          // Re-authenticate the user before deleting the account
-          AuthCredential credential = EmailAuthProvider.credential(
-            email: user.email!,
-            password: password,
-          );
+      try {
+        // Reauthenticate the user
+        AuthCredential credential = EmailAuthProvider.credential(
+          email: user.email!,
+          password: password,
+        );
+        await user.reauthenticateWithCredential(credential);
 
-          await user.reauthenticateWithCredential(credential);
+        // Proceed to delete the account
+        await FirebaseFirestore.instance
+            .collection('users')
+            .doc(user.uid)
+            .delete();
+        await user.delete();
 
-          // First, delete the Firestore document corresponding to the user
-          await FirebaseFirestore.instance
-              .collection('users')
-              .doc(user.uid)
-              .delete();
+        // Navigate to the main page after account deletion
+        Navigator.pushReplacement(
+          context,
+          MaterialPageRoute(
+              builder: (context) =>
+                  const MainPage()), // Replace MainPage with your main page widget
+        );
 
-          // Then, delete the user's account
-          await user.delete();
-
-          // Log before navigation
-          print("User account deleted successfully. Navigating to MainPage.");
-
-          // Navigate to the main page after account deletion
-          Navigator.pushAndRemoveUntil(
-            context,
-            MaterialPageRoute(builder: (context) => const MainPage()),
-            (route) => false, // Remove all previous routes
-          );
-
-          // Show success message
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('Account successfully deleted.')),
-          );
-        } on FirebaseAuthException catch (e) {
-          // Log the error
-          print("Error deleting account: ${e.message}");
-
-          if (e.code == 'requires-recent-login') {
-            ScaffoldMessenger.of(context).showSnackBar(
-              const SnackBar(
-                  content: Text('Please log in again to delete your account.')),
-            );
-          } else {
-            ScaffoldMessenger.of(context).showSnackBar(
-              SnackBar(content: Text(e.message ?? 'Failed to delete account')),
-            );
-          }
-        } catch (e) {
-          // Catch any other errors
-          print("Unexpected error: $e");
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('An unexpected error occurred.')),
-          );
-        }
-      } else {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-              content: Text('Password is required to delete the account.')),
+          const SnackBar(content: Text('Account successfully deleted.')),
+        );
+      } on FirebaseAuthException catch (e) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text(e.message ?? 'Failed to delete account')),
+        );
+      } catch (e) {
+        // Handle Firestore or other errors
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Error deleting account: $e')),
         );
       }
-    } else {
-      print("No user is currently logged in.");
     }
   }
 
-  void _onNavigationTap(int index) {
-    setState(() {
-      _selectedIndex = index; // Update the selected index
-    });
-    // You can also navigate to different pages based on index
-    switch (index) {
-      case 0:
-        Navigator.pushReplacement(
-          context,
-          MaterialPageRoute(builder: (context) => const LogIn()),
+  Future<String?> _showPasswordDialog(BuildContext context) async {
+    String? password;
+    final TextEditingController passwordController = TextEditingController();
+
+    await showDialog<String>(
+      context: context,
+      builder: (BuildContext context) {
+        return AlertDialog(
+          title: const Text('Confirm Password'),
+          content: TextField(
+            controller: passwordController,
+            obscureText: true,
+            decoration: const InputDecoration(hintText: 'Enter your password'),
+          ),
+          actions: <Widget>[
+            TextButton(
+              child: const Text('Cancel'),
+              onPressed: () {
+                Navigator.of(context).pop();
+              },
+            ),
+            TextButton(
+              child: const Text('Confirm'),
+              onPressed: () {
+                password = passwordController.text;
+                Navigator.of(context).pop();
+              },
+            ),
+          ],
         );
-        break;
-      case 1:
-        Navigator.pushReplacement(
-          context,
-          MaterialPageRoute(builder: (context) => const SignUp()),
-        );
-        break;
-      case 2:
-        // Profile page, do nothing
-        break;
-    }
+      },
+    );
+
+    return password;
   }
 
   @override
@@ -405,12 +373,25 @@ class _ProfileState extends State<Profile> {
                             color: Color(0xFF1D76E2), // Icon color
                           ),
 
-                          suffixIcon: IconButton(
-                            icon: const Icon(Icons
-                                .check_circle_outline), // Icon to the right as a button
-                            color: Colors.green,
+                          // save button
+                          suffix: ElevatedButton(
                             onPressed:
                                 _updateUsername, // Perform the update action
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: Color.fromARGB(255, 121, 201,
+                                  135), // Set the background color
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(
+                                    8), // Button border radius
+                              ),
+                              padding: const EdgeInsets.symmetric(
+                                  horizontal: 12, vertical: 8),
+                            ),
+                            child: const Text(
+                              'Save',
+                              style: TextStyle(
+                                  color: Colors.white), // Button text color
+                            ),
                           ),
 
                           filled: true,
@@ -424,12 +405,11 @@ class _ProfileState extends State<Profile> {
                     ),
                     const SizedBox(height: 30),
                     ProfileInfoWidget(
-                      text: "Reset Password",
-                      imagePath: 'img/reset-password.png',
-                      textColor: Colors.black,
-                      backgroundColor: const Color(0xFF23A8FE),
-                      onPress: _resetPassword,
-                    ),
+                        text: "Reset Password",
+                        imagePath: 'img/reset-password.png',
+                        textColor: Colors.black,
+                        backgroundColor: const Color(0xFF23A8FE),
+                        onPress: _resetPassword),
 
                     const SizedBox(height: 10),
 
@@ -453,7 +433,7 @@ class _ProfileState extends State<Profile> {
                       textColor: Colors.red,
                       backgroundColor: const Color(0xFFE21414),
                       onPress: () {
-                        deleteConfirmationDialog(
+                        DeleteConfirmationDialog(
                             context); // Call the correct function with context
                       },
                     ),
@@ -465,12 +445,13 @@ class _ProfileState extends State<Profile> {
         ],
       ),
       bottomNavigationBar: CurvedNavigationBar(
-          backgroundColor: const Color(0xFFF7F6F6),
-          height: 70,
-          color: const Color(0xFF2184FC).withOpacity(0.65),
-          animationDuration: const Duration(milliseconds: 350),
-          onTap: _onNavigationTap,
-          items: _navigationItem),
+        backgroundColor: const Color(0xFFF7F6F6),
+        height: 70,
+        color: const Color(0xFF2184FC).withOpacity(0.65),
+        animationDuration: const Duration(milliseconds: 350),
+        onTap: (index) {},
+        items: _navigationItem,
+      ),
     );
   }
 }

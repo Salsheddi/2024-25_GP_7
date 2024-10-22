@@ -63,61 +63,63 @@ class _SignUpState extends State<SignUp> {
     String password = passwordController.text.trim();
     String reenteredPassword = reenterPasswordController.text.trim();
 
-  // Validate form inputs
-  setState(() {
-    isUsernameValid = username.isNotEmpty;
-    isEmailValid = isValidEmail(email); // Validate format
-    isPasswordValid = validatePasswordStructure(password);
-    isReenteredPasswordMatching = password == reenteredPassword;
-  });
+    // Validate form inputs
+    setState(() {
+      isUsernameValid = username.isNotEmpty;
+      isEmailValid = isValidEmail(email); // Validate format
+      isPasswordValid = validatePasswordStructure(password);
+      isReenteredPasswordMatching = password == reenteredPassword;
+    });
 
-  // Check if any of the fields are invalid
-  if (!isUsernameValid || !isEmailValid || !isPasswordValid || !isReenteredPasswordMatching) {
-    return; // If there are validation issues, exit without trying to sign up
-  }
-
-  try {
-    _showLoadingDialog(context);
-
-    // Check if the email is already in use via FirebaseAuth
-    List<String> signInMethods = await _auth.fetchSignInMethodsForEmail(email);
-    if (signInMethods.isNotEmpty) {
-      // Email is already in use
-      setState(() {
-        isEmailValid = false; // Mark email as invalid
-      });
-      Navigator.pop(context); // Close the loading dialog
-      return;
+    // Check if any of the fields are invalid
+    if (!isUsernameValid ||
+        !isEmailValid ||
+        !isPasswordValid ||
+        !isReenteredPasswordMatching) {
+      return; // If there are validation issues, exit without trying to sign up
     }
 
-    // Proceed with user creation if email is valid and not in use
-    String hashedPassword = hashPassword(password);
-    UserCredential userCredential = await _auth.createUserWithEmailAndPassword(
-        email: email, password: password);
+    try {
+      _showLoadingDialog(context);
 
-    // Save user information in Firestore
-    await _firestore.collection('users').doc(userCredential.user!.uid).set({
-      'uid': userCredential.user!.uid,
-      'username': username,
-      'email': email,
-      'password': hashedPassword,
-    });
+      // Check if the email is already in use via FirebaseAuth
+      List<String> signInMethods =
+          await _auth.fetchSignInMethodsForEmail(email);
+      if (signInMethods.isNotEmpty) {
+        // Email is already in use
+        setState(() {
+          isEmailValid = false; // Mark email as invalid
+        });
+        Navigator.pop(context); // Close the loading dialog
+        return;
+      }
 
-    Navigator.pop(context); // Close the loading dialog
-    ScaffoldMessenger.of(context)
-        .showSnackBar(SnackBar(content: Text('Sign-up successful!')));
-    Navigator.pushReplacement(
-        context, MaterialPageRoute(builder: (context) => const Profile()));
-  } catch (e) {
-    Navigator.pop(context);
-    setState(() {
-      // Handle other error cases (like general network issues)
-      isEmailValid = false; // Ensure red border for email field
-    });
+      // Proceed with user creation if email is valid and not in use
+      String hashedPassword = hashPassword(password);
+      UserCredential userCredential = await _auth
+          .createUserWithEmailAndPassword(email: email, password: password);
+
+      // Save user information in Firestore
+      await _firestore.collection('users').doc(userCredential.user!.uid).set({
+        'uid': userCredential.user!.uid,
+        'username': username,
+        'email': email,
+        'password': hashedPassword,
+      });
+
+      Navigator.pop(context); // Close the loading dialog
+      ScaffoldMessenger.of(context)
+          .showSnackBar(SnackBar(content: Text('Sign-up successful!')));
+      Navigator.pushReplacement(
+          context, MaterialPageRoute(builder: (context) => const Profile()));
+    } catch (e) {
+      Navigator.pop(context);
+      setState(() {
+        // Handle other error cases (like general network issues)
+        isEmailValid = false; // Ensure red border for email field
+      });
+    }
   }
-}
-
-
 
   @override
   Widget build(BuildContext context) {
@@ -192,32 +194,37 @@ class _SignUpState extends State<SignUp> {
               SizedBox(height: 15),
 
               // Email field
-Text("E-mail", style: TextStyle(color: Colors.white)),
-TextFormField(
-  controller: emailController,
-  decoration: InputDecoration(
-    hintText: 'Enter your email',
-    hintStyle: TextStyle(
-      color: Color.fromARGB(255, 145, 143, 143),
-      fontSize: 15,
-    ),
-    errorText: isEmailValid ? null : "This email is already taken or invalid",
-    filled: true,
-    fillColor: Colors.white.withOpacity(0.28),
-    enabledBorder: OutlineInputBorder(
-      borderRadius: BorderRadius.circular(13.0),
-      borderSide: BorderSide(
-        color: Colors.white, // Set default enabled border color to white
-      ),
-    ),
-    focusedBorder: OutlineInputBorder(
-      borderRadius: BorderRadius.circular(13.0),
-      borderSide: BorderSide(
-        color: isEmailValid ? Colors.white : Colors.red, // Red outline when email is invalid
-      ),
-    ),
-  ),
-),
+              Text("E-mail", style: TextStyle(color: Colors.white)),
+              TextFormField(
+                controller: emailController,
+                decoration: InputDecoration(
+                  hintText: 'Enter your email',
+                  hintStyle: TextStyle(
+                    color: Color.fromARGB(255, 145, 143, 143),
+                    fontSize: 15,
+                  ),
+                  errorText: isEmailValid
+                      ? null
+                      : "This email is already taken or invalid",
+                  filled: true,
+                  fillColor: Colors.white.withOpacity(0.28),
+                  enabledBorder: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(13.0),
+                    borderSide: BorderSide(
+                      color: Colors
+                          .white, // Set default enabled border color to white
+                    ),
+                  ),
+                  focusedBorder: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(13.0),
+                    borderSide: BorderSide(
+                      color: isEmailValid
+                          ? Colors.white
+                          : Colors.red, // Red outline when email is invalid
+                    ),
+                  ),
+                ),
+              ),
 
               SizedBox(height: 15),
 
