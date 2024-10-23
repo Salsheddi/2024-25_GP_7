@@ -1,7 +1,6 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
-import 'package:flutter/widgets.dart';
 import 'package:mirsad/Auth/Profile.dart';
 import 'package:mirsad/Auth/SignUp.dart';
 import 'package:mirsad/Auth/ResetPass.dart';
@@ -17,18 +16,14 @@ class _LogInState extends State<LogIn> {
   final FirebaseAuth _auth = FirebaseAuth.instance;
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
 
-  // Controllers for the form fields
   TextEditingController emailController = TextEditingController();
   TextEditingController passwordController = TextEditingController();
 
-  // Form key for validation
   final _formKey = GlobalKey<FormState>();
 
-  // Variables to store error messages
   String? emailErrorMessage;
   String? passwordErrorMessage;
 
-  // Function to handle login
   void _logIn() async {
     setState(() {
       emailErrorMessage = null;
@@ -38,54 +33,61 @@ class _LogInState extends State<LogIn> {
     String email = emailController.text.trim();
     String password = passwordController.text.trim();
 
-    // Check for empty fields and set error messages
     if (email.isEmpty) {
       setState(() {
         emailErrorMessage = "Email cannot be empty";
       });
+      return;
     } else if (!RegExp(r'^[^@]+@[^@]+\.[^@]+').hasMatch(email)) {
       setState(() {
         emailErrorMessage = "Please enter a valid email address";
       });
+      return;
     }
 
     if (password.isEmpty) {
       setState(() {
         passwordErrorMessage = "Password cannot be empty";
       });
+      return;
     }
 
-    // If there are errors, return early
-    if (emailErrorMessage != null || passwordErrorMessage != null) return;
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (BuildContext context) {
+        return Center(child: CircularProgressIndicator());
+      },
+    );
 
     try {
-      // Sign in the user
       UserCredential userCredential = await _auth.signInWithEmailAndPassword(
         email: email,
         password: password,
       );
 
-      // Check if the user exists in Firestore
       DocumentSnapshot userDoc = await _firestore
           .collection('users')
           .doc(userCredential.user!.uid)
           .get();
+      Navigator.of(context).pop();
+
       if (userDoc.exists) {
         Navigator.pushReplacement(
             context, MaterialPageRoute(builder: (context) => const Profile()));
-        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-            content:
-                Text('Login successful!'))); // Replace with Home or Profile
+        ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text('Login successful!')));
       } else {
         setState(() {
-          emailErrorMessage = "Email or password is incorrect";
+          emailErrorMessage = "              ";
           passwordErrorMessage = "Email or password is incorrect";
         });
       }
     } catch (e) {
+      Navigator.of(context).pop();
       setState(() {
-        emailErrorMessage = "Failed to log in. Check your credentials.";
-        passwordErrorMessage = "Failed to log in. Check your credentials.";
+        emailErrorMessage = "                   ";
+        passwordErrorMessage = "Email or password is incorrect";
       });
     }
   }
@@ -99,12 +101,12 @@ class _LogInState extends State<LogIn> {
             begin: Alignment.topCenter,
             end: Alignment.bottomCenter,
             colors: [
-              Color(0xFF1D76E2), // #1D76E2
-              Color(0xFF2184FC), // #2184FC
-              Color(0xFF4D9CFC), // #4D9CFC
-              Color(0xFF7DB4F6), // #7DB4F6
-              Color(0xFFC1DDFF), // #C1DDFF
-              Color(0xFFD9D9D9), // #D9D9D9
+              Color(0xFF1D76E2),
+              Color(0xFF2184FC),
+              Color(0xFF4D9CFC),
+              Color(0xFF7DB4F6),
+              Color(0xFFC1DDFF),
+              Color(0xFFD9D9D9),
             ],
           ),
         ),
@@ -113,7 +115,7 @@ class _LogInState extends State<LogIn> {
           key: _formKey,
           child: ListView(
             children: [
-              SizedBox(height: 30), // padding above logo
+              SizedBox(height: 30),
               Container(
                 height: 100,
                 width: 100,
@@ -138,6 +140,17 @@ class _LogInState extends State<LogIn> {
               Text("E-mail", style: TextStyle(color: Colors.white)),
               TextFormField(
                 controller: emailController,
+                onChanged: (value) {
+                  setState(() {
+                    if (value.isEmpty) {
+                      emailErrorMessage = "Email cannot be empty";
+                    } else if (!RegExp(r'^[^@]+@[^@]+\.[^@]+').hasMatch(value)) {
+                      emailErrorMessage = "Please enter a valid email address";
+                    } else {
+                      emailErrorMessage = null; // Clear the error
+                    }
+                  });
+                },
                 decoration: InputDecoration(
                   hintText: 'E-mail',
                   hintStyle: TextStyle(
@@ -151,16 +164,14 @@ class _LogInState extends State<LogIn> {
                   enabledBorder: OutlineInputBorder(
                     borderRadius: BorderRadius.circular(13.0),
                     borderSide: BorderSide(
-                      color: Colors
-                          .white, // Set default enabled border color to white
+                      color: Colors.white,
                     ),
                   ),
                   focusedBorder: OutlineInputBorder(
                     borderRadius: BorderRadius.circular(13.0),
-                    borderSide: BorderSide(
-                        color: Colors.white), // Default border color white
+                    borderSide: BorderSide(color: Colors.white),
                   ),
-                  errorText: emailErrorMessage, // Show error message
+                  errorText: emailErrorMessage,
                 ),
               ),
               SizedBox(height: 15),
@@ -169,6 +180,16 @@ class _LogInState extends State<LogIn> {
               Text("Password", style: TextStyle(color: Colors.white)),
               TextFormField(
                 controller: passwordController,
+                onChanged: (value) {
+                  // Validate password on change
+                  setState(() {
+                    if (value.isEmpty) {
+                      passwordErrorMessage = "Password cannot be empty";
+                    } else {
+                      passwordErrorMessage = null; // Clear the error
+                    }
+                  });
+                },
                 decoration: InputDecoration(
                   hintText: 'Password',
                   hintStyle: TextStyle(
@@ -181,19 +202,15 @@ class _LogInState extends State<LogIn> {
                   fillColor: Colors.white.withOpacity(0.28),
                   enabledBorder: OutlineInputBorder(
                     borderRadius: BorderRadius.circular(13.0),
-                    borderSide: BorderSide(
-                      color: Colors
-                          .white, // Set default enabled border color to white
-                    ),
+                    borderSide: BorderSide(color: Colors.white),
                   ),
                   focusedBorder: OutlineInputBorder(
                     borderRadius: BorderRadius.circular(13.0),
-                    borderSide: BorderSide(
-                        color: Colors.white), // Default border color white
+                    borderSide: BorderSide(color: Colors.white),
                   ),
-                  errorText: passwordErrorMessage, // Show error message
+                  errorText: passwordErrorMessage,
                 ),
-                obscureText: true, // For password security
+                obscureText: true,
               ),
               SizedBox(height: 25),
 
@@ -226,41 +243,48 @@ class _LogInState extends State<LogIn> {
                   'Log In',
                   style: TextStyle(color: Colors.white),
                 ),
-                onPressed: _logIn,
+                onPressed: () {
+                  // Validate the form
+                  if (_formKey.currentState!.validate()) {
+                    _logIn();
+                  } else {
+                    // If the form is invalid, display an error message
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      SnackBar(content: Text('Something went wrong please try again.')),
+                    );
+                  }
+                },
               ),
-              SizedBox(height: 25),
+              const SizedBox(height: 15),
 
-              // No accsount?
-              Row(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  Text(
-                    'Don\'t have an account?',
-                    style: TextStyle(
-                      color: Colors.white.withOpacity(0.85),
-                      fontSize: 13,
-                      fontWeight: FontWeight.bold,
+              // Go to Sign Up screen
+              Align(
+                alignment: Alignment.center,
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    const Text(
+                      'Don’t have an account? ',
+                      style: TextStyle(color: Colors.white),
                     ),
-                  ),
-                  TextButton(
-                    onPressed: () {
-                      Navigator.pushReplacement(
+                    GestureDetector(
+                      onTap: () {
+                        Navigator.push(
                           context,
-                          MaterialPageRoute(
-                              builder: (context) => const SignUp()));
-                    },
-                    child: Text(
-                      'Sign up',
-                      style: TextStyle(
-                        color: Color(0xFF2184FC),
-                        fontSize: 13,
-                        fontWeight: FontWeight.bold,
+                          MaterialPageRoute(builder: (context) => SignUp()),
+                        );
+                      },
+                      child: const Text(
+                        'Sign Up',
+                        style: TextStyle(
+                          color: Color(0xFF2184FC),
+                          fontWeight: FontWeight.bold,
+                        ),
                       ),
                     ),
-                  ),
-                ],
+                  ],
+                ),
               ),
-              SizedBox(height: 35),
             ],
           ),
         ),

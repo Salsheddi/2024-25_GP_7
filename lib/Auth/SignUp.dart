@@ -30,6 +30,14 @@ class _SignUpState extends State<SignUp> {
 
   final _formKey = GlobalKey<FormState>();
 
+  // Track user interactions
+  bool hasUserInteractedWithUsername = false;
+  bool hasUserInteractedWithEmail = false;
+  bool hasUserInteractedWithPassword = false;
+  bool hasUserInteractedWithReenterPassword = false;
+  
+  String emailErrorMessage = "";
+
   // Function to validate email
   bool isValidEmail(String email) {
     return RegExp(r'^[^@]+@[^@]+\.[^@]+').hasMatch(email);
@@ -48,78 +56,96 @@ class _SignUpState extends State<SignUp> {
     return regExp.hasMatch(password);
   }
 
-  // Function to show loading dialog
-  void _showLoadingDialog(BuildContext context) {
+  // Update validation status when typing
+  void updateValidation() {
+    setState(() {
+      String email = emailController.text.trim();
+      String password = passwordController.text.trim();
+      String reenteredPassword = reenterPasswordController.text.trim();
+
+      if (hasUserInteractedWithUsername) {
+        isUsernameValid = usernameController.text.isNotEmpty;
+      }
+      if (hasUserInteractedWithPassword) {
+        isPasswordValid = validatePasswordStructure(password);
+      }
+      if (hasUserInteractedWithReenterPassword) {
+        isReenteredPasswordMatching = password == reenteredPassword;
+      }
+      if (hasUserInteractedWithEmail) {
+        isEmailValid = isValidEmail(email);
+        if (!isEmailValid && emailErrorMessage.isEmpty) {
+          emailErrorMessage = 'Please enter a valid email';
+        }
+      }
+    });
+  }
+
+  // Loading dialog function
+  void showLoadingDialog() {
     showDialog(
       context: context,
       barrierDismissible: false,
-      builder: (context) => Center(child: CircularProgressIndicator()),
+      builder: (context) => Dialog(
+        backgroundColor: Colors.transparent,
+        child: Center(
+          child: CircularProgressIndicator(),
+        ),
+      ),
     );
   }
 
-  void _signUp() async {
-    String username = usernameController.text.trim();
-    String email = emailController.text.trim();
-    String password = passwordController.text.trim();
-    String reenteredPassword = reenterPasswordController.text.trim();
-
-    // Validate form inputs
+  // Function to handle sign-up logic
+  Future<void> _signUp() async {
+  // Check if all fields are valid
+  if (usernameController.text.trim().isEmpty) {
     setState(() {
-      isUsernameValid = username.isNotEmpty;
-      isEmailValid = isValidEmail(email); // Validate format
-      isPasswordValid = validatePasswordStructure(password);
-      isReenteredPasswordMatching = password == reenteredPassword;
+      isUsernameValid = false;
     });
+    return; // Stop the signup process
+  } else {
+    setState(() {
+      isUsernameValid = true; // Username is valid if it is not empty
+    });
+  }
 
-    // Check if any of the fields are invalid
-    if (!isUsernameValid ||
-        !isEmailValid ||
-        !isPasswordValid ||
-        !isReenteredPasswordMatching) {
-      return; // If there are validation issues, exit without trying to sign up
-    }
-
+  if (isUsernameValid && isEmailValid && isPasswordValid && isReenteredPasswordMatching) {
+    showLoadingDialog(); // Show loading dialog when sign-up starts
     try {
-      _showLoadingDialog(context);
+      UserCredential userCredential = await _auth.createUserWithEmailAndPassword(
+        email: emailController.text.trim(),
+        password: passwordController.text.trim(),
+      );
 
-      // Check if the email is already in use via FirebaseAuth
-      List<String> signInMethods =
-          await _auth.fetchSignInMethodsForEmail(email);
-      if (signInMethods.isNotEmpty) {
-        // Email is already in use
-        setState(() {
-          isEmailValid = false; // Mark email as invalid
-        });
-        Navigator.pop(context); // Close the loading dialog
-        return;
-      }
-
-      // Proceed with user creation if email is valid and not in use
-      String hashedPassword = hashPassword(password);
-      UserCredential userCredential = await _auth
-          .createUserWithEmailAndPassword(email: email, password: password);
-
-      // Save user information in Firestore
       await _firestore.collection('users').doc(userCredential.user!.uid).set({
-        'uid': userCredential.user!.uid,
-        'username': username,
-        'email': email,
-        'password': hashedPassword,
+        'username': usernameController.text.trim(),
+        'email': emailController.text.trim(),
       });
 
       Navigator.pop(context); // Close the loading dialog
-      ScaffoldMessenger.of(context)
-          .showSnackBar(SnackBar(content: Text('Sign-up successful!')));
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Sign-up successful!')));
       Navigator.pushReplacement(
           context, MaterialPageRoute(builder: (context) => const Profile()));
-    } catch (e) {
-      Navigator.pop(context);
-      setState(() {
-        // Handle other error cases (like general network issues)
-        isEmailValid = false; // Ensure red border for email field
-      });
+    } on FirebaseAuthException catch (e) {
+      Navigator.pop(context); // Close the loading dialog
+      if (e.code == 'email-already-in-use') {
+        setState(() {
+          isEmailValid = false;
+          emailErrorMessage = 'This email is already taken';
+        });
+      } else if (e.code == 'invalid-email') {
+        setState(() {
+          isEmailValid = false;
+          emailErrorMessage = 'Please enter a valid email';
+        });
+      } else {
+        setState(() {
+          emailErrorMessage = 'An unknown error occurred';
+        });
+      }
     }
   }
+}
 
   @override
   Widget build(BuildContext context) {
@@ -135,7 +161,7 @@ class _SignUpState extends State<SignUp> {
               Color(0xFF4D9CFC),
               Color(0xFF7DB4F6),
               Color(0xFFC1DDFF),
-              Color(0xFFD9D9D9),
+              Color(0xFFC1DDF3),
             ],
           ),
         ),
@@ -144,7 +170,7 @@ class _SignUpState extends State<SignUp> {
           key: _formKey,
           child: ListView(
             children: [
-              SizedBox(height: 30), // padding above logo
+              SizedBox(height: 30),
               Container(
                 height: 100,
                 decoration: BoxDecoration(
@@ -174,15 +200,14 @@ class _SignUpState extends State<SignUp> {
                     color: Color.fromARGB(255, 145, 143, 143),
                     fontSize: 15,
                   ),
-                  errorText: isUsernameValid ? null : "Username can't be empty",
+                  errorText: hasUserInteractedWithUsername && !isUsernameValid
+                      ? "Username can't be empty"
+                      : null,
                   filled: true,
                   fillColor: Colors.white.withOpacity(0.28),
                   enabledBorder: OutlineInputBorder(
                     borderRadius: BorderRadius.circular(13.0),
-                    borderSide: BorderSide(
-                      color: Colors
-                          .white, // Set default enabled border color to white
-                    ),
+                    borderSide: BorderSide(color: Colors.white),
                   ),
                   focusedBorder: OutlineInputBorder(
                     borderRadius: BorderRadius.circular(13.0),
@@ -190,6 +215,10 @@ class _SignUpState extends State<SignUp> {
                         color: isUsernameValid ? Colors.white : Colors.red),
                   ),
                 ),
+                onChanged: (_) {
+                  hasUserInteractedWithUsername = true;
+                  updateValidation();
+                }, // Revalidate while typing
               ),
               SizedBox(height: 15),
 
@@ -203,27 +232,25 @@ class _SignUpState extends State<SignUp> {
                     color: Color.fromARGB(255, 145, 143, 143),
                     fontSize: 15,
                   ),
-                  errorText: isEmailValid
-                      ? null
-                      : "This email is already taken or invalid",
+                  errorText: hasUserInteractedWithEmail && !isEmailValid
+                      ? emailErrorMessage
+                      : null,
                   filled: true,
                   fillColor: Colors.white.withOpacity(0.28),
                   enabledBorder: OutlineInputBorder(
                     borderRadius: BorderRadius.circular(13.0),
-                    borderSide: BorderSide(
-                      color: Colors
-                          .white, // Set default enabled border color to white
-                    ),
+                    borderSide: BorderSide(color: Colors.white),
                   ),
                   focusedBorder: OutlineInputBorder(
                     borderRadius: BorderRadius.circular(13.0),
                     borderSide: BorderSide(
-                      color: isEmailValid
-                          ? Colors.white
-                          : Colors.red, // Red outline when email is invalid
-                    ),
+                        color: isEmailValid ? Colors.white : Colors.red),
                   ),
                 ),
+                onChanged: (_) {
+                  hasUserInteractedWithEmail = true;
+                  updateValidation();
+                }, // Revalidate while typing
               ),
 
               SizedBox(height: 15),
@@ -233,36 +260,37 @@ class _SignUpState extends State<SignUp> {
               TextFormField(
                 controller: passwordController,
                 decoration: InputDecoration(
-                  hintText:
-                      'password at least 8 letters includes (number,special character)',
+                  hintText: 'At least 8 characters, includes number and symbol',
                   hintStyle: TextStyle(
                     color: Color.fromARGB(255, 145, 143, 143),
-                    fontSize: 15,
+                    fontSize: 13,
+                    overflow: TextOverflow.ellipsis,
                   ),
-                  errorText: isPasswordValid
-                      ? null
-                      : "Password must be at least 8 characters long, contain a number and a symbol",
+                  errorText: hasUserInteractedWithPassword && !isPasswordValid
+                      ? "8+ characters, must include number & symbol"
+                      : null,
                   filled: true,
                   fillColor: Colors.white.withOpacity(0.28),
                   enabledBorder: OutlineInputBorder(
                     borderRadius: BorderRadius.circular(13.0),
-                    borderSide: BorderSide(
-                      color: Colors
-                          .white, // Set default enabled border color to white
-                    ),
+                    borderSide: BorderSide(color: Colors.white),
                   ),
                   focusedBorder: OutlineInputBorder(
                     borderRadius: BorderRadius.circular(13.0),
                     borderSide: BorderSide(
-                      color: isPasswordValid ? Colors.white : Colors.red,
-                    ),
+                        color: isPasswordValid ? Colors.white : Colors.red),
                   ),
                 ),
                 obscureText: true,
+                onChanged: (_) {
+                  hasUserInteractedWithPassword = true;
+                  updateValidation();
+                }, // Revalidate while typing
               ),
+
               SizedBox(height: 15),
 
-              // Re-enter password field
+              // Re-enter Password field
               Text("Re-enter Password", style: TextStyle(color: Colors.white)),
               TextFormField(
                 controller: reenterPasswordController,
@@ -272,17 +300,15 @@ class _SignUpState extends State<SignUp> {
                     color: Color.fromARGB(255, 145, 143, 143),
                     fontSize: 15,
                   ),
-                  errorText: isReenteredPasswordMatching
-                      ? null
-                      : "Passwords do not match",
+                  errorText: hasUserInteractedWithReenterPassword &&
+                          !isReenteredPasswordMatching
+                      ? "Passwords do not match"
+                      : null,
                   filled: true,
                   fillColor: Colors.white.withOpacity(0.28),
                   enabledBorder: OutlineInputBorder(
                     borderRadius: BorderRadius.circular(13.0),
-                    borderSide: BorderSide(
-                      color: Colors
-                          .white, // Set default enabled border color to white
-                    ),
+                    borderSide: BorderSide(color: Colors.white),
                   ),
                   focusedBorder: OutlineInputBorder(
                     borderRadius: BorderRadius.circular(13.0),
@@ -293,10 +319,15 @@ class _SignUpState extends State<SignUp> {
                   ),
                 ),
                 obscureText: true,
+                onChanged: (_) {
+                  hasUserInteractedWithReenterPassword = true;
+                  updateValidation();
+                }, // Revalidate while typing
               ),
-              SizedBox(height: 25),
 
-              // Sign up button
+              SizedBox(height: 30),
+
+                            // Sign up button
               MaterialButton(
                 height: 53,
                 shape: RoundedRectangleBorder(
@@ -331,17 +362,16 @@ class _SignUpState extends State<SignUp> {
                               builder: (context) => const LogIn()));
                     },
                     child: Text(
-                      'Log In',
+                      'Login',
                       style: TextStyle(
-                        color: Color(0xFF2184FC),
                         fontWeight: FontWeight.bold,
+                        color: Color(0xFF2184FC),
                         fontSize: 13,
                       ),
                     ),
                   ),
                 ],
               ),
-              SizedBox(height: 15),
             ],
           ),
         ),
@@ -349,3 +379,5 @@ class _SignUpState extends State<SignUp> {
     );
   }
 }
+
+
