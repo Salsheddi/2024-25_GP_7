@@ -75,8 +75,8 @@ class _LogInState extends State<LogIn> {
       if (userDoc.exists) {
         Navigator.pushReplacement(
             context, MaterialPageRoute(builder: (context) => const Profile()));
-        ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text('Login successful!')));
+        ScaffoldMessenger.of(context)
+            .showSnackBar(SnackBar(content: Text('Login successful!')));
       } else {
         setState(() {
           emailErrorMessage = "              ";
@@ -116,14 +116,19 @@ class _LogInState extends State<LogIn> {
           child: ListView(
             children: [
               SizedBox(height: 30),
-              Container(
-                height: 100,
-                width: 100,
-                decoration: BoxDecoration(
-                  borderRadius: BorderRadius.circular(50),
-                  color: Colors.white.withOpacity(0.75),
+              Align(
+                alignment: Alignment.center,
+                child: Container(
+                  height: 100,
+                  width: 100, // Set a fixed width
+                  decoration: BoxDecoration(
+                    borderRadius: BorderRadius.circular(70),
+                    color: Colors.white.withOpacity(0.75),
+                  ),
+                  child: Image.asset(
+                    'img/Mirsad2.png',
+                  ),
                 ),
-                child: Image.asset('img/Mirsad2.png'),
               ),
               SizedBox(height: 20),
               Text(
@@ -144,7 +149,8 @@ class _LogInState extends State<LogIn> {
                   setState(() {
                     if (value.isEmpty) {
                       emailErrorMessage = "Email cannot be empty";
-                    } else if (!RegExp(r'^[^@]+@[^@]+\.[^@]+').hasMatch(value)) {
+                    } else if (!RegExp(r'^[^@]+@[^@]+\.[^@]+')
+                        .hasMatch(value)) {
                       emailErrorMessage = "Please enter a valid email address";
                     } else {
                       emailErrorMessage = null; // Clear the error
@@ -158,7 +164,7 @@ class _LogInState extends State<LogIn> {
                     fontSize: 15,
                   ),
                   contentPadding:
-                      EdgeInsets.symmetric(vertical: 2, horizontal: 20),
+                      EdgeInsets.symmetric(vertical: 14, horizontal: 20),
                   filled: true,
                   fillColor: Colors.white.withOpacity(0.28),
                   enabledBorder: OutlineInputBorder(
@@ -197,7 +203,7 @@ class _LogInState extends State<LogIn> {
                     fontSize: 15,
                   ),
                   contentPadding:
-                      EdgeInsets.symmetric(vertical: 2, horizontal: 20),
+                      EdgeInsets.symmetric(vertical: 14, horizontal: 20),
                   filled: true,
                   fillColor: Colors.white.withOpacity(0.28),
                   enabledBorder: OutlineInputBorder(
@@ -241,7 +247,7 @@ class _LogInState extends State<LogIn> {
                 color: Color(0xFF1C7ECE),
                 child: Text(
                   'Log In',
-                  style: TextStyle(color: Colors.white),
+                  style: TextStyle(color: Colors.white, fontSize: 18),
                 ),
                 onPressed: () {
                   // Validate the form
@@ -250,7 +256,9 @@ class _LogInState extends State<LogIn> {
                   } else {
                     // If the form is invalid, display an error message
                     ScaffoldMessenger.of(context).showSnackBar(
-                      SnackBar(content: Text('Something went wrong please try again.')),
+                      SnackBar(
+                          content:
+                              Text('Something went wrong please try again.')),
                     );
                   }
                 },

@@ -42,13 +42,14 @@ class MainPage extends StatelessWidget {
               height: 600, // Adjust this height to cover only the button area
               decoration: BoxDecoration(
                 image: DecorationImage(
-                  image: AssetImage("img/main_page.png"), // Path to your background image
+                  image: AssetImage(
+                      "img/main_page.png"), // Path to your background image
                   fit: BoxFit.cover,
                 ),
               ),
             ),
           ),
-          
+
           // Main content container (logo, text, buttons)
           Center(
             child: Column(
@@ -60,6 +61,15 @@ class MainPage extends StatelessWidget {
                   width: 200, // Adjust width as needed
                   height: 200, // Adjust height as needed
                 ),
+                Text(
+                  'MIRSAD',
+                  style: TextStyle(
+                    fontSize: 25,
+                    fontWeight: FontWeight.bold,
+                    color: Color.fromARGB(255, 0, 0, 0), // Text color
+                  ),
+                  textAlign: TextAlign.center,
+                ), // Center the text
                 const SizedBox(height: 20), // Space between logo and text
                 const Text(
                   'Your First Line In Defense Against Smishing',
@@ -78,22 +88,27 @@ class MainPage extends StatelessWidget {
                     Navigator.push(
                       context,
                       MaterialPageRoute(
-                          builder: (context) => const SignUp()), // Navigate to SignUp page
+                          builder: (context) =>
+                              const SignUp()), // Navigate to SignUp page
                     );
                   },
                   style: ElevatedButton.styleFrom(
-                    backgroundColor: Colors.white, // White background for button
+                    backgroundColor:
+                        Colors.white, // White background for button
                     minimumSize: const Size(200, 50), // Button size
                     shape: RoundedRectangleBorder(
                       borderRadius: BorderRadius.circular(8), // Rounded corners
                     ),
-                    side: BorderSide(color: Colors.blue, width: 2), // Optional: Border to make it stand out
+                    side: BorderSide(
+                        color: Colors.blue,
+                        width: 2), // Optional: Border to make it stand out
                   ),
                   child: const Text(
                     'Sign Up',
                     style: TextStyle(
                       color: Color(0xFF1D76E2), // Blue text
                       fontWeight: FontWeight.bold,
+                      fontSize: 18,
                     ),
                   ),
                 ),
@@ -105,22 +120,27 @@ class MainPage extends StatelessWidget {
                     Navigator.push(
                       context,
                       MaterialPageRoute(
-                          builder: (context) => const LogIn()), // Navigate to LogIn page
+                          builder: (context) =>
+                              const LogIn()), // Navigate to LogIn page
                     );
                   },
                   style: ElevatedButton.styleFrom(
-                    backgroundColor: Colors.white, // White background for button
+                    backgroundColor:
+                        Colors.white, // White background for button
                     minimumSize: const Size(200, 50), // Button size
                     shape: RoundedRectangleBorder(
                       borderRadius: BorderRadius.circular(8), // Rounded corners
                     ),
-                    side: BorderSide(color: Colors.blue, width: 2), // Optional: Border to make it stand out
+                    side: BorderSide(
+                        color: Colors.blue,
+                        width: 2), // Optional: Border to make it stand out
                   ),
                   child: const Text(
                     'Log In',
                     style: TextStyle(
                       color: Color(0xFF1D76E2), // Blue text
                       fontWeight: FontWeight.bold,
+                      fontSize: 18,
                     ),
                   ),
                 ),
