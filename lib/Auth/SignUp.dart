@@ -96,61 +96,62 @@ class _SignUpState extends State<SignUp> {
   }
 
   // Function to handle sign-up logic
-  Future<void> _signUp() async {
-    // Check if all fields are valid
-    if (usernameController.text.trim().isEmpty) {
-      setState(() {
-        isUsernameValid = false;
-      });
-      return; // Stop the signup process
-    } else {
-      setState(() {
-        isUsernameValid = true; // Username is valid if it is not empty
-      });
+Future<void> _signUp() async {
+  setState(() {
+    // Update validation flags
+    hasUserInteractedWithUsername = true;
+    hasUserInteractedWithEmail = true;
+    hasUserInteractedWithPassword = true;
+    hasUserInteractedWithReenterPassword = true;
+    
+    // Validate fields
+    isUsernameValid = usernameController.text.trim().isNotEmpty;
+    isEmailValid = isValidEmail(emailController.text.trim());
+    isPasswordValid = validatePasswordStructure(passwordController.text.trim());
+    isReenteredPasswordMatching = passwordController.text.trim() == reenterPasswordController.text.trim();
+    
+    // Update specific error messages
+    if (!isEmailValid) {
+      emailErrorMessage = 'Please enter a valid email';
     }
+  });
 
-    if (isUsernameValid &&
-        isEmailValid &&
-        isPasswordValid &&
-        isReenteredPasswordMatching) {
-      showLoadingDialog(); // Show loading dialog when sign-up starts
-      try {
-        UserCredential userCredential =
-            await _auth.createUserWithEmailAndPassword(
-          email: emailController.text.trim(),
-          password: passwordController.text.trim(),
-        );
-
-        await _firestore.collection('users').doc(userCredential.user!.uid).set({
-          'username': usernameController.text.trim(),
-          'email': emailController.text.trim(),
-        });
-
-        Navigator.pop(context); // Close the loading dialog
-        ScaffoldMessenger.of(context)
-            .showSnackBar(SnackBar(content: Text('Sign-up successful!')));
-        Navigator.pushReplacement(
-            context, MaterialPageRoute(builder: (context) => const Profile()));
-      } on FirebaseAuthException catch (e) {
-        Navigator.pop(context); // Close the loading dialog
-        if (e.code == 'email-already-in-use') {
-          setState(() {
-            isEmailValid = false;
-            emailErrorMessage = 'This email is already taken';
-          });
-        } else if (e.code == 'invalid-email') {
-          setState(() {
-            isEmailValid = false;
-            emailErrorMessage = 'Please enter a valid email';
-          });
-        } else {
-          setState(() {
-            emailErrorMessage = 'An unknown error occurred';
-          });
-        }
-      }
-    }
+  // If any validation fails, stop sign-up process
+  if (!isUsernameValid || !isEmailValid || !isPasswordValid || !isReenteredPasswordMatching) {
+    return;
   }
+
+  showLoadingDialog(); // Show loading dialog if all fields are valid
+  try {
+    UserCredential userCredential = await _auth.createUserWithEmailAndPassword(
+      email: emailController.text.trim(),
+      password: passwordController.text.trim(),
+    );
+
+    // Hash the password
+    String hashedPassword = hashPassword(passwordController.text.trim());
+
+    await _firestore.collection('users').doc(userCredential.user!.uid).set({
+      'uid': userCredential.user!.uid,
+      'username': usernameController.text.trim(),
+      'email': emailController.text.trim(),
+      'password': hashedPassword,
+    });
+
+    Navigator.pop(context); // Close the loading dialog
+    ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Sign-up successful!')));
+    Navigator.pushReplacement(
+      context,
+      MaterialPageRoute(builder: (context) => const Profile()),
+    );
+  } on FirebaseAuthException catch (e) {
+    Navigator.pop(context); // Close the loading dialog
+    setState(() {
+      emailErrorMessage = e.code == 'email-already-in-use' ? 'This email is already taken' : 'An unknown error occurred';
+      isEmailValid = false;
+    });
+  }
+}
 
   @override
   Widget build(BuildContext context) {

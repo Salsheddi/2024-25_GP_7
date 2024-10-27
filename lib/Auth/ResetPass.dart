@@ -1,5 +1,3 @@
-// ignore_for_file: unused_import
-
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
@@ -12,87 +10,81 @@ class ResetPass extends StatefulWidget {
 
 class _ResetPassState extends State<ResetPass> {
   TextEditingController emailController = TextEditingController();
+  TextEditingController reenterEmailController = TextEditingController();
   bool hasError = false; // Flag to track if there's an error
+  bool emailMismatch = false; // Flag for email mismatch
 
   // Function to send the reset email
   Future<void> _sendResetEmail(BuildContext context) async {
-  String email = emailController.text.trim();
+    String email = emailController.text.trim();
 
-  // Step 1: Validate email format
-  if (email.isEmpty || !RegExp(r'^[^@]+@[^@]+\.[^@]+').hasMatch(email)) {
-    // Show error message for invalid format
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text('Please enter a valid email address')),
-    );
-    return; // Exit the function early
-  }
-
-  // Show loading spinner
-  showDialog(
-    context: context,
-    barrierDismissible: false,
-    builder: (BuildContext context) {
-      return Center(
-        child: CircularProgressIndicator(),
+    // Validate email format
+    if (email.isEmpty || !RegExp(r'^[^@]+@[^@]+\.[^@]+').hasMatch(email)) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Please enter a valid email address')),
       );
-    },
-  );
-
-  try {
-    // Step 2: Check if the email exists in Firestore
-    final userDoc = await FirebaseFirestore.instance
-        .collection('users') // Change this to your users collection
-        .where('email', isEqualTo: email)
-        .get();
-
-    // Check if user document exists
-    if (userDoc.docs.isEmpty) {
-      throw Exception('No user found with this email');
+      return;
     }
 
-    // Send the reset password email
-    await FirebaseAuth.instance.sendPasswordResetEmail(email: email);
-
-    // Dismiss the loading spinner
-    Navigator.pop(context);
-
-    // Reset error flag if successful
-    setState(() {
-      hasError = false;
-    });
-
-    // Show success message
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text('Password reset email sent to $email')),
+    // Show loading spinner
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (BuildContext context) {
+        return Center(child: CircularProgressIndicator());
+      },
     );
 
-    // Navigate to the login page
-    Navigator.pushReplacement(
-      context,
-      MaterialPageRoute(builder: (context) => LogIn()),
-    );
-  } catch (e) {
-    // Dismiss the loading spinner
-    Navigator.pop(context);
+    try {
+      // Check if the email exists in Firestore
+      final userDoc = await FirebaseFirestore.instance
+          .collection('users')
+          .where('email', isEqualTo: email)
+          .get();
 
-    // Set the error flag to true
-    setState(() {
-      hasError = true;
-    });
+      if (userDoc.docs.isEmpty) {
+        throw Exception('No user found with this email');
+      }
 
-    // Show error message
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text('no user found with this email')), // Show specific error message
-    );
+      await FirebaseAuth.instance.sendPasswordResetEmail(email: email);
+      Navigator.pop(context);
+
+      setState(() {
+        hasError = false;
+      });
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Password reset email sent to $email')),
+      );
+
+      Navigator.pushReplacement(
+        context,
+        MaterialPageRoute(builder: (context) => LogIn()),
+      );
+    } catch (e) {
+      Navigator.pop(context);
+      setState(() {
+        hasError = true;
+      });
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('No user found with this email')),
+      );
+    }
   }
-}
+
+  // Function to check if emails match
+  void _checkEmailMatch() {
+    setState(() {
+      emailMismatch = emailController.text != reenterEmailController.text;
+    });
+  }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       body: Stack(
         children: [
-          // Background image with transparency
           Positioned.fill(
             child: Opacity(
               opacity: 0.5,
@@ -102,11 +94,9 @@ class _ResetPassState extends State<ResetPass> {
               ),
             ),
           ),
-          // Content
           Positioned.fill(
             child: Column(
               children: [
-                // White bar for navigation
                 Container(
                   color: Colors.white,
                   child: SafeArea(
@@ -129,14 +119,12 @@ class _ResetPassState extends State<ResetPass> {
                     ),
                   ),
                 ),
-                // Main content
                 Expanded(
                   child: Padding(
                     padding: EdgeInsets.all(16.0),
                     child: Column(
                       mainAxisAlignment: MainAxisAlignment.center,
                       children: [
-                        // Semi-transparent background box for text and email field
                         Container(
                           padding: EdgeInsets.all(16.0),
                           decoration: BoxDecoration(
@@ -162,7 +150,6 @@ class _ResetPassState extends State<ResetPass> {
                                 ),
                               ),
                               SizedBox(height: 20),
-                              // Email input field
                               TextField(
                                 controller: emailController,
                                 decoration: InputDecoration(
@@ -176,7 +163,7 @@ class _ResetPassState extends State<ResetPass> {
                                   fillColor: Colors.black.withOpacity(0.3),
                                   enabledBorder: OutlineInputBorder(
                                     borderSide: BorderSide(
-                                      color: hasError ? Colors.red : Colors.white, // Red border on error
+                                      color: hasError ? Colors.red : Colors.white,
                                       width: 2.0,
                                     ),
                                   ),
@@ -186,20 +173,68 @@ class _ResetPassState extends State<ResetPass> {
                                       width: 2.0,
                                     ),
                                   ),
-                                  border: OutlineInputBorder(),
                                 ),
                                 style: TextStyle(
                                   color: Colors.white,
                                   fontWeight: FontWeight.bold,
                                   fontSize: 18.0,
                                 ),
+                                onChanged: (value) {
+                                  _checkEmailMatch();
+                                },
                               ),
                               SizedBox(height: 20),
-                              // Proceed button
-                              ElevatedButton(
-                                onPressed: () {
-                                  _sendResetEmail(context); // Call the function to reset password
+                              TextField(
+                                controller: reenterEmailController,
+                                decoration: InputDecoration(
+                                  labelText: 'Re-enter Email',
+                                  labelStyle: TextStyle(
+                                    color: Colors.white,
+                                    fontWeight: FontWeight.bold,
+                                    fontSize: 18.0,
+                                  ),
+                                  filled: true,
+                                  fillColor: Colors.black.withOpacity(0.3),
+                                  enabledBorder: OutlineInputBorder(
+                                    borderSide: BorderSide(
+                                      color: emailMismatch ? Colors.red : Colors.white,
+                                      width: 2.0,
+                                    ),
+                                  ),
+                                  focusedBorder: OutlineInputBorder(
+                                    borderSide: BorderSide(
+                                      color: emailMismatch ? Colors.red : Colors.white,
+                                      width: 2.0,
+                                    ),
+                                  ),
+                                ),
+                                style: TextStyle(
+                                  color: Colors.white,
+                                  fontWeight: FontWeight.bold,
+                                  fontSize: 18.0,
+                                ),
+                                onChanged: (value) {
+                                  _checkEmailMatch();
                                 },
+                              ),
+                              if (emailMismatch)
+                                Padding(
+                                  padding: const EdgeInsets.only(top: 8.0),
+                                  child: Text(
+                                    'Emails do not match',
+                                    style: TextStyle(
+                                      color: Colors.red,
+                                      fontWeight: FontWeight.bold,
+                                    ),
+                                  ),
+                                ),
+                              SizedBox(height: 20),
+                              ElevatedButton(
+                                onPressed: emailMismatch
+                                    ? null
+                                    : () {
+                                        _sendResetEmail(context);
+                                      },
                                 style: ElevatedButton.styleFrom(
                                   backgroundColor: Colors.white,
                                   minimumSize: const Size(200, 50),
