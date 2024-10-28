@@ -204,7 +204,12 @@ Future<void> _signUp() async {
               SizedBox(height: 30),
 
               // Username field
-              Text("Username", style: TextStyle(color: Colors.white)),
+             Row(
+               children: [
+                 Text("Username", style: TextStyle(color: Colors.white)),
+                 Text(" *", style: TextStyle(color: Colors.red)),
+                 ],
+              ),
               TextFormField(
                 controller: usernameController,
                 decoration: InputDecoration(
@@ -238,7 +243,12 @@ Future<void> _signUp() async {
               SizedBox(height: 15),
 
               // Email field
-              Text("E-mail", style: TextStyle(color: Colors.white)),
+              Row(
+               children: [
+                 Text("E-mail", style: TextStyle(color: Colors.white)),
+                 Text(" *", style: TextStyle(color: Colors.red)),
+                 ],
+              ),
               TextFormField(
                 controller: emailController,
                 decoration: InputDecoration(
@@ -273,7 +283,12 @@ Future<void> _signUp() async {
               SizedBox(height: 15),
 
               // Password field
-              Text("Password", style: TextStyle(color: Colors.white)),
+              Row(
+               children: [
+                 Text("Password", style: TextStyle(color: Colors.white)),
+                 Text(" *", style: TextStyle(color: Colors.red)),
+                 ],
+              ),
               TextFormField(
                 controller: passwordController,
                 decoration: InputDecoration(
@@ -310,7 +325,12 @@ Future<void> _signUp() async {
               SizedBox(height: 15),
 
               // Re-enter Password field
-              Text("Re-enter Password", style: TextStyle(color: Colors.white)),
+              Row(
+               children: [
+                 Text("Re-enter Password", style: TextStyle(color: Colors.white)),
+                 Text(" *", style: TextStyle(color: Colors.red)),
+                 ],
+              ),
               TextFormField(
                 controller: reenterPasswordController,
                 decoration: InputDecoration(

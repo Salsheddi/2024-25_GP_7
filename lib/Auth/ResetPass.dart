@@ -150,10 +150,16 @@ class _ResetPassState extends State<ResetPass> {
                                 ),
                               ),
                               SizedBox(height: 20),
+                              Row(
+                               children: [
+                                   Text("E-mail", style: TextStyle(color: Colors.white)),
+                                   Text(" *", style: TextStyle(color: Colors.red)),
+                                   ],
+                                ),
                               TextField(
                                 controller: emailController,
                                 decoration: InputDecoration(
-                                  labelText: 'Email',
+                                  labelText: 'E-mail',
                                   labelStyle: TextStyle(
                                     color: Colors.white,
                                     fontWeight: FontWeight.bold,
@@ -184,10 +190,16 @@ class _ResetPassState extends State<ResetPass> {
                                 },
                               ),
                               SizedBox(height: 20),
+                              Row(
+                               children: [
+                                   Text("Re-enter E-mail", style: TextStyle(color: Colors.white)),
+                                   Text(" *", style: TextStyle(color: Colors.red)),
+                                   ],
+                                ),
                               TextField(
                                 controller: reenterEmailController,
                                 decoration: InputDecoration(
-                                  labelText: 'Re-enter Email',
+                                  labelText: 'Re-enter E-mail',
                                   labelStyle: TextStyle(
                                     color: Colors.white,
                                     fontWeight: FontWeight.bold,

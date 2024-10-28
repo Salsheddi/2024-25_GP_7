@@ -142,7 +142,12 @@ class _LogInState extends State<LogIn> {
               SizedBox(height: 30),
 
               // Email Form field
-              Text("E-mail", style: TextStyle(color: Colors.white)),
+             Row(
+               children: [
+                 Text("E-mail", style: TextStyle(color: Colors.white)),
+                 Text(" *", style: TextStyle(color: Colors.red)),
+                 ],
+              ),
               TextFormField(
                 controller: emailController,
                 onChanged: (value) {
@@ -183,7 +188,12 @@ class _LogInState extends State<LogIn> {
               SizedBox(height: 15),
 
               // Password Form field
-              Text("Password", style: TextStyle(color: Colors.white)),
+              Row(
+               children: [
+                 Text("Password", style: TextStyle(color: Colors.white)),
+                 Text(" *", style: TextStyle(color: Colors.red)),
+                 ],
+              ),
               TextFormField(
                 controller: passwordController,
                 onChanged: (value) {
