@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:mirsad/Auth/Profile.dart';
 import 'package:mirsad/Auth/SignUp.dart';
 import 'package:mirsad/Auth/ResetPass.dart';
+import 'package:mirsad/Auth/home.dart';
 
 class LogIn extends StatefulWidget {
   const LogIn({super.key});
@@ -74,7 +75,7 @@ class _LogInState extends State<LogIn> {
 
       if (userDoc.exists) {
         Navigator.pushReplacement(
-            context, MaterialPageRoute(builder: (context) => const Profile()));
+            context, MaterialPageRoute(builder: (context) => const Home()));
         ScaffoldMessenger.of(context)
             .showSnackBar(SnackBar(content: Text('Login successful!')));
       } else {
