@@ -28,12 +28,7 @@ class Profile extends StatefulWidget {
 }
 
 class _ProfileState extends State<Profile> {
-  final List<Widget> _navigationItem = [
-    const Icon(Icons.smart_toy_outlined, size: 32, color: Colors.white),
-    const Icon(Icons.home, size: 32, color: Colors.white),
-    const Icon(Icons.person, size: 32, color: Colors.white)
-  ];
-
+  
   String? userName;
   String? userEmail;
   Uint8List? image;
@@ -522,14 +517,6 @@ class _ProfileState extends State<Profile> {
             ),
           ),
         ],
-      ),
-      bottomNavigationBar: CurvedNavigationBar(
-        backgroundColor: const Color(0xFFF7F6F6),
-        height: 70,
-        color: const Color(0xFF2184FC).withOpacity(0.65),
-        animationDuration: const Duration(milliseconds: 350),
-        onTap: (index) {},
-        items: _navigationItem,
       ),
     );
   }

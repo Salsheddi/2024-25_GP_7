@@ -159,7 +159,7 @@ class _ResetPassState extends State<ResetPass> {
                               TextField(
                                 controller: emailController,
                                 decoration: InputDecoration(
-                                  labelText: 'E-mail',
+                                  labelText: '',
                                   labelStyle: TextStyle(
                                     color: Colors.white,
                                     fontWeight: FontWeight.bold,
@@ -199,7 +199,7 @@ class _ResetPassState extends State<ResetPass> {
                               TextField(
                                 controller: reenterEmailController,
                                 decoration: InputDecoration(
-                                  labelText: 'Re-enter E-mail',
+                                  labelText: '',
                                   labelStyle: TextStyle(
                                     color: Colors.white,
                                     fontWeight: FontWeight.bold,

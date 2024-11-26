@@ -42,7 +42,7 @@ dependencies:
   firebase_auth: ^5.2.0
   google_sign_in: ^6.2.1
   crypto: ^3.0.3
-  curved_navigation_bar: ^1.0.6
+  curved_navigation_bar: ^1.0.0
   material_design_icons_flutter: ^7.0.7296
   image_picker: ^1.1.2
 
