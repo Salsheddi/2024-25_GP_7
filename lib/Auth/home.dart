@@ -272,6 +272,6 @@ class HomeContent extends StatelessWidget {
           const Spacer(), 
         ],
       ),
-    );
+    ); 
   }
 }
