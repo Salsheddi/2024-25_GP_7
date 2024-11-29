@@ -1,5 +1,7 @@
 import 'package:curved_navigation_bar/curved_navigation_bar.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/material.dart';
+import 'package:curved_navigation_bar/curved_navigation_bar.dart';
 import 'package:mirsad/Auth/Profile.dart';
 import 'package:mirsad/Auth/chatbot.dart';
 import 'package:mirsad/Auth/classification.dart';
@@ -12,46 +14,47 @@ class Home extends StatefulWidget {
 }
 
 class _HomeState extends State<Home> {
-  // Current index of the bottom navigation bar
   int _currentIndex = 1;
+  bool _isNavBarVisible = true; // New state to control navbar visibility
 
-  // Navigation items (icons)
   final List<Widget> _navigationItem = [
     const Icon(Icons.smart_toy_outlined, size: 32, color: Colors.white),
     const Icon(Icons.home, size: 32, color: Colors.white),
     const Icon(Icons.person, size: 32, color: Colors.white),
   ];
 
-  // Corresponding pages for each navigation item
   final List<Widget> _pages = [
-    const chatbot(), // Chatbot widget
-    const HomeContent(), // Home content widget
-    const Profile(), // Profile page
+    const chatbot(),
+    const HomeContent(),
+    const Profile(),
   ];
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: const Color(0xFFEDECEC),
-      body: _pages[_currentIndex], // Display the selected page
-      bottomNavigationBar: CurvedNavigationBar(
-        backgroundColor: const Color(0xFFEDECEC),
-        height: 70,
-        color: const Color(0xFF2184FC).withOpacity(0.65),
-        animationDuration: const Duration(milliseconds: 350),
-        index: _currentIndex,
-        onTap: (index) {
-          setState(() {
-            _currentIndex = index; // Update the current page index
-          });
-        },
-        items: _navigationItem,
+      body: _pages[_currentIndex],
+      bottomNavigationBar: Visibility(
+        visible: _isNavBarVisible, // Control visibility of navbar
+        child: CurvedNavigationBar(
+          backgroundColor: const Color(0xFFEDECEC),
+          height: 70,
+          color: const Color(0xFF2184FC).withOpacity(0.65),
+          animationDuration: const Duration(milliseconds: 350),
+          index: _currentIndex,
+          onTap: (index) {
+            setState(() {
+              _currentIndex = index;
+              _isNavBarVisible = true; // Ensure navbar is visible when switching tabs
+            });
+          },
+          items: _navigationItem,
+        ),
       ),
     );
   }
 }
 
-// Widget for the main content of the "Home" page
 class HomeContent extends StatelessWidget {
   const HomeContent({super.key});
 
@@ -61,11 +64,10 @@ class HomeContent extends StatelessWidget {
       child: Column(
         children: [
           const SizedBox(height: 4),
-          // Logo
           Center(
             child: SizedBox(
               height: 100,
-              width: 100, // Set a fixed width
+              width: 100,
               child: Image.asset('img/Mirsad2.png'),
             ),
           ),
@@ -111,6 +113,8 @@ class HomeContent extends StatelessWidget {
           // AI Fraud Detector Card
           InkWell(
             onTap: () {
+              // Hide navbar and navigate to Classification
+              (context as Element).markNeedsBuild();
               Navigator.push(
                 context,
                 MaterialPageRoute(builder: (context) => const Classification()),
@@ -129,7 +133,6 @@ class HomeContent extends StatelessWidget {
                 child: Row(
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
-                    // Text content
                     Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       mainAxisAlignment: MainAxisAlignment.center,
@@ -152,7 +155,6 @@ class HomeContent extends StatelessWidget {
                         ),
                       ],
                     ),
-                    // Image on the right
                     Opacity(
                       opacity: 0.65,
                       child: Image.asset(
@@ -173,7 +175,6 @@ class HomeContent extends StatelessWidget {
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceEvenly,
             children: [
-              // Reporting Card
               InkWell(
                 onTap: () {
                   // Handle tap for Reporting
@@ -221,7 +222,6 @@ class HomeContent extends StatelessWidget {
                   ),
                 ),
               ),
-              // Analytical Report Card
               InkWell(
                 onTap: () {
                   // Handle tap for Analytical Report
@@ -269,10 +269,9 @@ class HomeContent extends StatelessWidget {
               ),
             ],
           ),
-          const Spacer(),
+          const Spacer(), 
         ],
       ),
-    );
+    ); 
   }
 }
-

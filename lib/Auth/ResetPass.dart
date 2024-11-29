@@ -120,7 +120,7 @@ class _ResetPassState extends State<ResetPass> {
                   ),
                 ),
                 Expanded(
-                  child: Padding(
+                  child: SingleChildScrollView( // Use SingleChildScrollView here
                     padding: EdgeInsets.all(16.0),
                     child: Column(
                       mainAxisAlignment: MainAxisAlignment.center,
@@ -151,11 +151,11 @@ class _ResetPassState extends State<ResetPass> {
                               ),
                               SizedBox(height: 20),
                               Row(
-                               children: [
-                                   Text("E-mail", style: TextStyle(color: Colors.white)),
-                                   Text(" *", style: TextStyle(color: Colors.red)),
-                                   ],
-                                ),
+                                children: [
+                                  Text("E-mail", style: TextStyle(color: Colors.white)),
+                                  Text(" *", style: TextStyle(color: Colors.red)),
+                                ],
+                              ),
                               TextField(
                                 controller: emailController,
                                 decoration: InputDecoration(
@@ -191,11 +191,11 @@ class _ResetPassState extends State<ResetPass> {
                               ),
                               SizedBox(height: 20),
                               Row(
-                               children: [
-                                   Text("Re-enter E-mail", style: TextStyle(color: Colors.white)),
-                                   Text(" *", style: TextStyle(color: Colors.red)),
-                                   ],
-                                ),
+                                children: [
+                                  Text("Re-enter E-mail", style: TextStyle(color: Colors.white)),
+                                  Text(" *", style: TextStyle(color: Colors.red)),
+                                ],
+                              ),
                               TextField(
                                 controller: reenterEmailController,
                                 decoration: InputDecoration(

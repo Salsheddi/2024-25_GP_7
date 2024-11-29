@@ -1,6 +1,6 @@
 # MIRSAD
 
-<picture align="center"><img src = "img/Picture1.png" width = 700px></picture>
+<picture align="center"><img src = "img/Mirsad1.png" width = 700px></picture>
 
 
 

@@ -28,6 +28,9 @@ class Profile extends StatefulWidget {
 }
 
 class _ProfileState extends State<Profile> {
+  int _currentIndex = 2; // Initially, the profile tab is selected
+  bool _isNavBarVisible = true; // Control visibility of bottom navigation bar
+
   
   String? userName;
   String? userEmail;
@@ -47,6 +50,7 @@ class _ProfileState extends State<Profile> {
       image = img;
     });
   }
+  
 
   // Fetch the user details from Firestore
   Future<void> _fetchUserDetails() async {
