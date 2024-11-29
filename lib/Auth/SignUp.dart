@@ -143,7 +143,7 @@ Future<void> _signUp() async {
     ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Sign-up successful!')));
     Navigator.pushReplacement(
       context,
-      MaterialPageRoute(builder: (context) => const Home()),
+      MaterialPageRoute(builder: (context) => const LogIn()),
     );
   } on FirebaseAuthException catch (e) {
     Navigator.pop(context); // Close the loading dialog
