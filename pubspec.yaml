@@ -85,11 +85,12 @@ flutter:
     - img/main_page.png
     - img/reset-password.png
     - img/user.png
-    - img/Anareport.png
+    - img/sms.png
     - img/Ellipse5.png
-    - img/Frame9.png
     - img/report.png
-    - img/sms.png 
+    - img/Anareport.png
+    - img/Frame9.png
+    
   # An image asset can refer to one or more resolution-specific "variants", see
   # https://flutter.dev/assets-and-images/#resolution-aware
 
