@@ -1,9 +1,15 @@
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_auth/firebase_auth.dart';
+import 'package:mirsad/Auth/Profile.dart';
+import 'package:mirsad/Auth/chatbot.dart';
 import 'dart:io';
 import 'package:mirsad/Auth/home.dart';
 import 'package:http/http.dart' as http;
 import 'dart:convert';
+import 'package:google_mlkit_text_recognition/google_mlkit_text_recognition.dart'; 
+import 'package:curved_navigation_bar/curved_navigation_bar.dart';  // Import for the bottom navigation bar
 
 class Classification extends StatefulWidget {
   const Classification({super.key});
@@ -13,126 +19,251 @@ class Classification extends StatefulWidget {
 }
 
 class _ClassificationState extends State<Classification> {
-  File? _image; // To store image
+  int _currentIndex = 1;  // Default to the second tab (Home)
+  bool _isNavBarVisible = true;  // To control visibility of the navbar
 
-  // Create an instance of ImagePicker
-  final ImagePicker _picker = ImagePicker();
-  //for api :
   final TextEditingController _textController = TextEditingController();
-  String? _result; // To store the result from the API
+String? _result; // To store the result from the API
+File? _image; // To store image
+final ImagePicker _picker = ImagePicker(); // Create an instance of ImagePicker
 
-  // Function to pick an image
-  Future<void> _pickImage() async {
-    final XFile? pickedFile = await _picker.pickImage(source: ImageSource.gallery);
-    if (pickedFile != null) {
+String? _extractedText = ''; // Store the initial extracted text
+bool _isTextEdited = false; // Flag to track if the text has been edited
+bool _isTextSet = false; // Flag to track if the extracted text has been set
+
+@override
+void initState() {
+  super.initState();
+
+  // Add a listener to the TextEditingController to detect changes in the text field
+  _textController.addListener(() {
+    // Only remove the image if the text is edited by the user, after it's been set
+    if (_isTextSet && _textController.text != _extractedText && _image != null) {
       setState(() {
-        _image = File(pickedFile.path);
+        _isTextEdited = true;  // Mark as edited to prevent repeated triggers
+        _image = null;         // Remove image after the user starts editing
       });
     }
+  });
+}
+
+Future<void> _pickImage() async {
+  final XFile? pickedFile = await _picker.pickImage(source: ImageSource.gallery);
+  if (pickedFile != null) {
+    setState(() {
+      _image = File(pickedFile.path); // Store the image file
+      _textController.clear(); // Clear any existing text in the field immediately
+      _isTextEdited = false; // Reset the edit flag to prevent premature image removal
+      _extractedText = ''; // Reset the extracted text
+      _isTextSet = false; // Reset the flag to false
+    });
+
+    // Extract text from the image once uploaded
+    await _extractTextFromImage();
   }
+}
 
-// api calling to Huggingface space -shdn
- Future<void> _checkMessage() async {
-  String baseUrl = "https://shdnalssheddi-mirsad-classifier.hf.space/gradio_api/call/predict";
+// Reset function
+void _resetContent() {
+  _textController.clear(); // Clear the text field
+  setState(() {
+    _image = null; // Clear the image
+    _result = null; // Clear the result
+    _isTextSet = false; // Reset the text set flag
+  });
+}
 
+Future<void> _extractTextFromImage() async {
+  if (_image == null) return;
   try {
-    // Prepare the payload
-    Map<String, dynamic> payload = {
-      "data": [_textController.text]
-    };
+    final textRecognizer = TextRecognizer();
+    final InputImage inputImage = InputImage.fromFile(_image!);
+    final RecognizedText recognizedText = await textRecognizer.processImage(inputImage);
 
-    // Make the POST request
-    final postResponse = await http.post(
-      Uri.parse(baseUrl),
-      headers: {"Content-Type": "application/json"},
-      body: json.encode(payload),
-    );
+    setState(() {
+      // Set extracted text to the text field
+      _textController.text = recognizedText.text; 
+      _extractedText = recognizedText.text; // Store the extracted text
+      _isTextSet = true; // Mark that the extracted text has been set
+    });
 
-    if (postResponse.statusCode == 200) {
-      final postResponseBody = json.decode(postResponse.body);
+    textRecognizer.close();
+  } catch (e) {
+    setState(() {
+      _result = "Error extracting text: $e";
+    });
+  }
+}
 
-      if (postResponseBody['event_id'] != null) {
-        String eventId = postResponseBody['event_id'];
-        String resultUrl = "$baseUrl/$eventId";
+  // API calling to Huggingface space -shdn
+  Future<void> _checkMessage() async {
+    String baseUrl = "https://shdnalssheddi-mirsad-classifier.hf.space/gradio_api/call/predict";
+    try {
+      // Prepare the payload
+      Map<String, dynamic> payload = {
+        "data": [_textController.text]
+      };
 
-        // Fetch the result
-        final getResponse = await http.get(Uri.parse(resultUrl));
+      // Make the POST request
+      final postResponse = await http.post(
+        Uri.parse(baseUrl),
+        headers: {"Content-Type": "application/json"},
+        body: json.encode(payload),
+      );
 
-        if (getResponse.statusCode == 200) {
-          // Check if the response starts with "event:"
-          String responseBody = getResponse.body;
-          if (responseBody.startsWith("event:")) {
-            // Extract the "data" part
-            final dataIndex = responseBody.indexOf("data: ");
-            if (dataIndex != -1) {
-              String dataPart = responseBody.substring(dataIndex + 6).trim(); // Get content after "data: "
-              try {
-                // Try to parse as JSON if possible
-                final parsedData = json.decode(dataPart);
+      if (postResponse.statusCode == 200) {
+        final postResponseBody = json.decode(postResponse.body);
 
-                // Extract the classification result
-                String classification = parsedData["data"][0][0];
-                String justification = parsedData["data"][0][1];
-                String likelihood = parsedData["data"][0][2];
+        if (postResponseBody['event_id'] != null) {
+          String eventId = postResponseBody['event_id'];
+          String resultUrl = "$baseUrl/$eventId";
 
-                // Display the label, hold justification and likelihood for now
+          // Fetch the result
+          final getResponse = await http.get(Uri.parse(resultUrl));
+
+          if (getResponse.statusCode == 200) {
+            // Check if the response starts with "event:"
+            String responseBody = getResponse.body;
+            if (responseBody.startsWith("event:")) {
+              // Extract the "data" part
+              final dataIndex = responseBody.indexOf("data: ");
+              if (dataIndex != -1) {
+                String dataPart = responseBody.substring(dataIndex + 6).trim(); // Get content after "data: "
+                try {
+                  // Try to parse as JSON if possible
+                  final parsedData = json.decode(dataPart);
+
+                  // Extract the classification result
+                  String classification = parsedData["data"][0][0];
+                  String justification = parsedData["data"][0][1];
+                  String likelihood = parsedData["data"][0][2];
+
+                  // Display the label, hold justification and likelihood for now
+                  setState(() {
+                    _result = """
+                      Classification: 
+                      \x1B[31m\x1B[1m$classification\x1B[0m
+                      Justification: $justification
+                      Likelihood: $likelihood
+                    """;
+                  });
+                  // Get current user's ID
+                final currentUser = FirebaseAuth.instance.currentUser;
+if (currentUser == null) {
+    print("User not logged in!");
+  return;
+}
+
+String userId = currentUser.uid;  // Get the current user's ID
+String messageId = "DET${DateTime.now().millisecondsSinceEpoch}"; // Generate a unique message ID
+DateTime now = DateTime.now();  // Get the current date/time
+
+// Create the message document in the 'messages' subcollection for this user
+try {
+  await FirebaseFirestore.instance
+      .collection('users')
+      .doc(userId)
+      .collection('messages')
+      .doc(messageId)
+      .set({
+    'id': messageId,
+    'text': _textController.text,
+    'classification': classification,
+    'justification': justification,
+    'likelihood': likelihood,
+    'date': now,
+  });
+    print("Message saved successfully!");
+
+} catch (e) {
+    print("Error saving to Firestore: $e");
+}
+                } catch (e) {
+                  // If not JSON, display the data part as-is
+                  setState(() {
+                    _result = dataPart;
+                  });
+                }
+              } else {
                 setState(() {
-                  _result = """
-                    Classification: 
-                    \x1B[31m\x1B[1m$classification\x1B[0m
-                    Justification: $justification
-                    Likelihood: $likelihood
-                  """;
-                });
-              } catch (e) {
-                // If not JSON, display the data part as-is
-                setState(() {
-                  _result = dataPart;
+                  _result = "Error: 'data' part not found in response.";
                 });
               }
             } else {
               setState(() {
-                _result = "Error: 'data' part not found in response.";
+                _result = "Error: Unexpected response format.";
               });
             }
           } else {
             setState(() {
-              _result = "Error: Unexpected response format.";
+              _result = "Error: GET request failed (${getResponse.statusCode}).";
             });
           }
         } else {
           setState(() {
-            _result = "Error: GET request failed (${getResponse.statusCode}).";
+            _result = "Error: 'event_id' not found in POST response.";
           });
         }
       } else {
         setState(() {
-          _result = "Error: 'event_id' not found in POST response.";
+          _result = "Error: POST request failed (${postResponse.statusCode}).";
         });
       }
-    } else {
+    } catch (e) {
       setState(() {
-        _result = "Error: POST request failed (${postResponse.statusCode}).";
+        _result = "Error: $e";
       });
     }
-  } catch (e) {
-    setState(() {
-      _result = "Error: $e";
-    });
   }
-}
-// end api calling code 
-
-@override
+ @override
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: const Color(0xFFEDECEC),
-      body: ClassificationContent(
-        pickImage: _pickImage,
-        image: _image,
-        textController: _textController,
-        onCheckMessage: _checkMessage,
-        result: _result,
+      body: IndexedStack(
+        index: _currentIndex, // Switch between tabs
+        children: [
+          const chatbot(), // Index 0 - Chatbot
+          ClassificationContent(
+  pickImage: _pickImage,
+  image: _image,
+  textController: _textController,
+  onCheckMessage: _checkMessage,
+  result: _result,
+  onReset: _resetContent, // Pass the reset function
+),// Index 1 - Classification page
+          const Profile(), // Index 2 - Profile page
+        ],
+      ),
+      bottomNavigationBar: Visibility(
+        visible: _isNavBarVisible,
+        child: CurvedNavigationBar(
+          backgroundColor: const Color(0xFFEDECEC),
+          height: 70,
+          color: const Color(0xFF2184FC).withOpacity(0.65),
+          animationDuration: const Duration(milliseconds: 350),
+          index: _currentIndex,
+          onTap: (index) {
+            setState(() {
+              // If the Home button (index 1) is clicked, go directly to Home (index 0)
+              if (index == 1) {
+                // Directly navigate to Home page
+                _currentIndex = 0;
+                Navigator.pushReplacement(
+                  context,
+                  MaterialPageRoute(builder: (context) => const Home()),
+                );
+              } else {
+                // Update the current index based on the tapped tab
+                _currentIndex = index;
+              }
+            });
+          },
+          items: const [
+            Icon(Icons.smart_toy_outlined, size: 32, color: Colors.white),
+            Icon(Icons.home, size: 32, color: Colors.white),
+            Icon(Icons.person, size: 32, color: Colors.white),
+          ],
+        ),
       ),
     );
   }
@@ -144,6 +275,7 @@ class ClassificationContent extends StatelessWidget {
   final TextEditingController textController;
   final Future<void> Function() onCheckMessage;
   final String? result;
+  final VoidCallback onReset;
 
   const ClassificationContent({
     super.key,
@@ -152,13 +284,19 @@ class ClassificationContent extends StatelessWidget {
     required this.textController,
     required this.onCheckMessage,
     required this.result,
+    required this.onReset,
   });
 
   @override
   Widget build(BuildContext context) {
+    // Notifiers for hover effects
+    ValueNotifier<bool> isImageHovered = ValueNotifier(false);
+    ValueNotifier<bool> isButtonHovered = ValueNotifier(false);
+    ValueNotifier<bool> isButtonPressed = ValueNotifier(false);
+
     return Scaffold(
       backgroundColor: const Color(0xFFEDECEC),
-      resizeToAvoidBottomInset: true, // Prevent overflow when keyboard appears
+      resizeToAvoidBottomInset: true,
       body: GestureDetector(
         onTap: () {
           // Dismiss keyboard when tapping outside the text field
@@ -167,7 +305,6 @@ class ClassificationContent extends StatelessWidget {
         child: SingleChildScrollView(
           child: Column(
             children: [
-              // Header
               Container(
                 height: 100,
                 width: double.infinity,
@@ -180,20 +317,15 @@ class ClassificationContent extends StatelessWidget {
                   ),
                 ),
                 child: Row(
+                  mainAxisAlignment: MainAxisAlignment.start,
                   crossAxisAlignment: CrossAxisAlignment.center,
                   children: [
                     const SizedBox(width: 10),
-                    Container(
-                      decoration: const BoxDecoration(
-                        shape: BoxShape.circle,
-                        color: Colors.black54, // Dark background for the home button
-                      ),
-                      child: IconButton(
-                        onPressed: () {
-                          Navigator.pop(context);
-                        },
-                        icon: const Icon(Icons.home, color: Colors.white),
-                      ),
+                    IconButton(
+                      icon: const Icon(Icons.arrow_back, color: Colors.white),
+                      onPressed: () {
+                        Navigator.pop(context);
+                      },
                     ),
                     const SizedBox(width: 10),
                     const Text(
@@ -203,12 +335,10 @@ class ClassificationContent extends StatelessWidget {
                   ],
                 ),
               ),
-              // Content
               Padding(
                 padding: const EdgeInsets.all(16.0),
                 child: Column(
                   children: [
-                    // Input Card
                     Container(
                       padding: const EdgeInsets.all(16.0),
                       decoration: BoxDecoration(
@@ -221,47 +351,148 @@ class ClassificationContent extends StatelessWidget {
                       child: Column(
                         children: [
                           const Text(
-                            'Got a suspicious message? Let’s find out if it’s legitimate or a fraud!',
+                            'Got a suspicious message?',
+                            textAlign: TextAlign.center,
+                            style: TextStyle(color: Colors.blue, fontSize: 18, fontWeight: FontWeight.bold),
+                          ),
+                          const Text(
+                            'Let’s find out if it’s legitimate or a spam!',
                             textAlign: TextAlign.center,
                             style: TextStyle(color: Colors.blue, fontSize: 18, fontWeight: FontWeight.bold),
                           ),
                           const SizedBox(height: 16),
-                          TextField(
-                            controller: textController,
-                            maxLines: 5,
-                            decoration: InputDecoration(
-                              hintText: 'Enter text here...',
-                              border: OutlineInputBorder(borderRadius: BorderRadius.circular(8.0)),
-                              fillColor: Colors.grey[200],
-                              filled: true,
+                          Stack(
+                            clipBehavior: Clip.none,
+                            children: [
+                              TextFormField(
+                                controller: textController,
+                                maxLines: 2,
+                                decoration: InputDecoration(
+                                  hintText: 'Enter text here OR upload screenshot of your message',
+                                  hintStyle: TextStyle(
+                                    fontSize: 15,
+                                    color: Color.fromARGB(255, 137, 136, 136),
+                                  ),
+                                  border: OutlineInputBorder(borderRadius: BorderRadius.circular(8.0)),
+                                  fillColor: Colors.grey[200],
+                                  filled: true,
+                                  suffixIcon: IconButton(
+                                    onPressed: pickImage,
+                                    icon: Icon(Icons.attach_file, size: 25, color: Colors.blue.withOpacity(0.65)),
+                                  ),
+                                ),
+                              ),
+                              Positioned(
+                                top: -10,
+                                left: -10,
+                                child: GestureDetector(
+                                  onTap: onReset,
+                                  child: Container(
+                                    width: 24,
+                                    height: 24,
+                                    decoration: BoxDecoration(
+                                      shape: BoxShape.circle,
+                                      color: Colors.red,
+                                    ),
+                                    child: const Icon(
+                                      Icons.close,
+                                      color: Colors.white,
+                                      size: 16,
+                                    ),
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ),
+                          const SizedBox(height: 14),
+                          if (image != null)
+                            Stack(
+                              clipBehavior: Clip.none,
+                              children: [
+                                ValueListenableBuilder<bool>(
+                                  valueListenable: isImageHovered,
+                                  builder: (context, hover, child) {
+                                    return MouseRegion(
+                                      onEnter: (_) => isImageHovered.value = true,
+                                      onExit: (_) => isImageHovered.value = false,
+                                      child: AnimatedContainer(
+                                        duration: const Duration(milliseconds: 200),
+                                        height: hover ? 140 : 120,
+                                        width: hover ? 140 : 120,
+                                        decoration: BoxDecoration(
+                                          borderRadius: BorderRadius.circular(8.0),
+                                          border: Border.all(color: Colors.grey, width: 1),
+                                        ),
+                                        child: Image.file(
+                                          image!,
+                                          fit: BoxFit.cover,
+                                        ),
+                                      ),
+                                    );
+                                  },
+                                ),
+                                Positioned(
+                                  top: -10,
+                                  left: -10,
+                                  child: GestureDetector(
+                                    onTap: onReset,
+                                    child: Container(
+                                      width: 24,
+                                      height: 24,
+                                      decoration: BoxDecoration(
+                                        shape: BoxShape.circle,
+                                        color: Colors.red,
+                                      ),
+                                      child: const Icon(
+                                        Icons.close,
+                                        color: Colors.white,
+                                        size: 16,
+                                      ),
+                                    ),
+                                  ),
+                                ),
+                              ],
                             ),
-                          ),
                           const SizedBox(height: 16),
-                          const Text('OR', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Colors.blue)),
-                          const Text('Upload screenshot of the message'),
-                          const SizedBox(height: 16),
-                          IconButton(
-                            onPressed: pickImage,
-                            icon: Icon(Icons.image, size: 40, color: Colors.blue.withOpacity(0.65)),
-                          ),
-                          image != null
-                              ? Image.file(image!, height: 150, width: 150, fit: BoxFit.cover)
-                              : const SizedBox(height: 16),
-                          const SizedBox(height: 16),
-                          ElevatedButton(
-                            onPressed: () async {
-                              // Call the _checkMessage function when the button is pressed
-                              await onCheckMessage();
+                          ValueListenableBuilder<bool>(
+                            valueListenable: isButtonHovered,
+                            builder: (context, hover, child) {
+                              return GestureDetector(
+                                onTapDown: (_) => isButtonPressed.value = true,
+                                onTapUp: (_) => isButtonPressed.value = false,
+                                onTapCancel: () => isButtonPressed.value = false,
+                                onTap: () async {
+                                  await onCheckMessage();
+                                },
+                                child: MouseRegion(
+                                  onEnter: (_) => isButtonHovered.value = true,
+                                  onExit: (_) => isButtonHovered.value = false,
+                                  child: ValueListenableBuilder<bool>(
+                                    valueListenable: isButtonPressed,
+                                    builder: (context, pressed, child) {
+                                      return AnimatedContainer(
+                                        duration: const Duration(milliseconds: 200),
+                                        padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+                                        decoration: BoxDecoration(
+                                          color: pressed
+                                              ? Color.fromARGB(255, 28, 73, 134)
+                                              : hover
+                                                  ? Color.fromARGB(255, 165, 203, 248).withOpacity(0.85)
+                                                  : const Color(0xFF2184FC).withOpacity(0.65),
+                                          borderRadius: BorderRadius.circular(8.0),
+                                        ),
+                                        child: const Text(
+                                          'Check Message',
+                                          style: TextStyle(fontSize: 16, color: Colors.white),
+                                        ),
+                                      );
+                                    },
+                                  ),
+                                ),
+                              );
                             },
-                            style: ElevatedButton.styleFrom(
-                              backgroundColor: const Color(0xFF2184FC).withOpacity(0.65),
-                              padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
-                              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8.0)),
-                            ),
-                            child: const Text('Check Message', style: TextStyle(fontSize: 16, color: Colors.white)),
                           ),
                           const SizedBox(height: 16),
-                          // Display only the label (e.g., SPAM or NOT SPAM) with dynamic styling
                           if (result != null)
                             Text(
                               _extractLabel(result!),
@@ -281,27 +512,26 @@ class ClassificationContent extends StatelessWidget {
     );
   }
 
-  // Function to extract the label (e.g., SPAM or NOT SPAM)
   String _extractLabel(String result) {
     RegExp regExp = RegExp(r"\*\*Label:\*\*\s*(\w+)");
     Match? match = regExp.firstMatch(result);
     if (match != null) {
       String label = match.group(1)?.toLowerCase() ?? "unknown";
       if (label == "spam") return "SPAM";
-      if (label == "not") return "NOT SPAM"; // Map "not" to "NOT SPAM"
+      if (label == "not") return "LEGITIMATE";
     }
     return "Unknown";
   }
 
-  // Function to extract the label's style based on its value
   TextStyle _extractLabelStyle(String result) {
     String label = _extractLabel(result);
     if (label == "SPAM") {
       return const TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: Colors.red);
-    } else if (label == "NOT SPAM") {
+    } else if (label == "LEGITIMATE") {
       return const TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: Colors.green);
     } else {
       return const TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: Colors.black);
     }
   }
 }
+
