@@ -269,7 +269,7 @@ class HomeContent extends StatelessWidget {
               ),
             ],
           ),
-          const Spacer(),
+          const Spacer(), 
         ],
       ),
     );
