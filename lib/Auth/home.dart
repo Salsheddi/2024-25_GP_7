@@ -32,12 +32,12 @@ class _HomeState extends State<Home> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: const Color(0xFFEDECEC),
+      backgroundColor: const Color(0xFFF7F6F6),
       body: _pages[_currentIndex],
       bottomNavigationBar: Visibility(
         visible: _isNavBarVisible, // Control visibility of navbar
         child: CurvedNavigationBar(
-          backgroundColor: const Color(0xFFEDECEC),
+          backgroundColor: const Color(0xFFF7F6F6),
           height: 70,
           color: const Color(0xFF2184FC).withOpacity(0.65),
           animationDuration: const Duration(milliseconds: 350),
@@ -74,8 +74,7 @@ class HomeContent extends StatelessWidget {
           ),
           const SizedBox(height: 20),
 
-// AI Fraud Detector Card
-
+          // AI Fraud Detector Card
           Padding(
             padding: const EdgeInsets.symmetric(horizontal: 16.0),
             child: InkWell(
