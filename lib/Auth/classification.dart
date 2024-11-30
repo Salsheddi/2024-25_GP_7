@@ -8,8 +8,8 @@ import 'dart:io';
 import 'package:mirsad/Auth/home.dart';
 import 'package:http/http.dart' as http;
 import 'dart:convert';
-import 'package:google_mlkit_text_recognition/google_mlkit_text_recognition.dart'; 
-import 'package:curved_navigation_bar/curved_navigation_bar.dart';  // Import for the bottom navigation bar
+import 'package:google_mlkit_text_recognition/google_mlkit_text_recognition.dart';
+import 'package:curved_navigation_bar/curved_navigation_bar.dart'; // Import for the bottom navigation bar
 
 class Classification extends StatefulWidget {
   const Classification({super.key});
@@ -19,85 +19,93 @@ class Classification extends StatefulWidget {
 }
 
 class _ClassificationState extends State<Classification> {
-  int _currentIndex = 1;  // Default to the second tab (Home)
-  bool _isNavBarVisible = true;  // To control visibility of the navbar
+  int _currentIndex = 1; // Default to the second tab (Home)
+  bool _isNavBarVisible = true; // To control visibility of the navbar
 
   final TextEditingController _textController = TextEditingController();
-String? _result; // To store the result from the API
-File? _image; // To store image
-final ImagePicker _picker = ImagePicker(); // Create an instance of ImagePicker
+  String? _result; // To store the result from the API
+  File? _image; // To store image
+  final ImagePicker _picker =
+      ImagePicker(); // Create an instance of ImagePicker
 
-String? _extractedText = ''; // Store the initial extracted text
-bool _isTextEdited = false; // Flag to track if the text has been edited
-bool _isTextSet = false; // Flag to track if the extracted text has been set
+  String? _extractedText = ''; // Store the initial extracted text
+  bool _isTextEdited = false; // Flag to track if the text has been edited
+  bool _isTextSet = false; // Flag to track if the extracted text has been set
 
-@override
-void initState() {
-  super.initState();
+  @override
+  void initState() {
+    super.initState();
 
-  // Add a listener to the TextEditingController to detect changes in the text field
-  _textController.addListener(() {
-    // Only remove the image if the text is edited by the user, after it's been set
-    if (_isTextSet && _textController.text != _extractedText && _image != null) {
-      setState(() {
-        _isTextEdited = true;  // Mark as edited to prevent repeated triggers
-        _image = null;         // Remove image after the user starts editing
-      });
-    }
-  });
-}
-
-Future<void> _pickImage() async {
-  final XFile? pickedFile = await _picker.pickImage(source: ImageSource.gallery);
-  if (pickedFile != null) {
-    setState(() {
-      _image = File(pickedFile.path); // Store the image file
-      _textController.clear(); // Clear any existing text in the field immediately
-      _isTextEdited = false; // Reset the edit flag to prevent premature image removal
-      _extractedText = ''; // Reset the extracted text
-      _isTextSet = false; // Reset the flag to false
+    // Add a listener to the TextEditingController to detect changes in the text field
+    _textController.addListener(() {
+      // Only remove the image if the text is edited by the user, after it's been set
+      if (_isTextSet &&
+          _textController.text != _extractedText &&
+          _image != null) {
+        setState(() {
+          _isTextEdited = true; // Mark as edited to prevent repeated triggers
+          _image = null; // Remove image after the user starts editing
+        });
+      }
     });
-
-    // Extract text from the image once uploaded
-    await _extractTextFromImage();
   }
-}
+
+  Future<void> _pickImage() async {
+    final XFile? pickedFile =
+        await _picker.pickImage(source: ImageSource.gallery);
+    if (pickedFile != null) {
+      setState(() {
+        _image = File(pickedFile.path); // Store the image file
+        _textController
+            .clear(); // Clear any existing text in the field immediately
+        _isTextEdited =
+            false; // Reset the edit flag to prevent premature image removal
+        _extractedText = ''; // Reset the extracted text
+        _isTextSet = false; // Reset the flag to false
+      });
+
+      // Extract text from the image once uploaded
+      await _extractTextFromImage();
+    }
+  }
 
 // Reset function
-void _resetContent() {
-  _textController.clear(); // Clear the text field
-  setState(() {
-    _image = null; // Clear the image
-    _result = null; // Clear the result
-    _isTextSet = false; // Reset the text set flag
-  });
-}
-
-Future<void> _extractTextFromImage() async {
-  if (_image == null) return;
-  try {
-    final textRecognizer = TextRecognizer();
-    final InputImage inputImage = InputImage.fromFile(_image!);
-    final RecognizedText recognizedText = await textRecognizer.processImage(inputImage);
-
+  void _resetContent() {
+    _textController.clear(); // Clear the text field
     setState(() {
-      // Set extracted text to the text field
-      _textController.text = recognizedText.text; 
-      _extractedText = recognizedText.text; // Store the extracted text
-      _isTextSet = true; // Mark that the extracted text has been set
-    });
-
-    textRecognizer.close();
-  } catch (e) {
-    setState(() {
-      _result = "Error extracting text: $e";
+      _image = null; // Clear the image
+      _result = null; // Clear the result
+      _isTextSet = false; // Reset the text set flag
     });
   }
-}
+
+  Future<void> _extractTextFromImage() async {
+    if (_image == null) return;
+    try {
+      final textRecognizer = TextRecognizer();
+      final InputImage inputImage = InputImage.fromFile(_image!);
+      final RecognizedText recognizedText =
+          await textRecognizer.processImage(inputImage);
+
+      setState(() {
+        // Set extracted text to the text field
+        _textController.text = recognizedText.text;
+        _extractedText = recognizedText.text; // Store the extracted text
+        _isTextSet = true; // Mark that the extracted text has been set
+      });
+
+      textRecognizer.close();
+    } catch (e) {
+      setState(() {
+        _result = "Error extracting text: $e";
+      });
+    }
+  }
 
   // API calling to Huggingface space -shdn
   Future<void> _checkMessage() async {
-    String baseUrl = "https://shdnalssheddi-mirsad-classifier.hf.space/gradio_api/call/predict";
+    String baseUrl =
+        "https://shdnalssheddi-mirsad-classifier.hf.space/gradio_api/call/predict";
     try {
       // Prepare the payload
       Map<String, dynamic> payload = {
@@ -128,7 +136,9 @@ Future<void> _extractTextFromImage() async {
               // Extract the "data" part
               final dataIndex = responseBody.indexOf("data: ");
               if (dataIndex != -1) {
-                String dataPart = responseBody.substring(dataIndex + 6).trim(); // Get content after "data: "
+                String dataPart = responseBody
+                    .substring(dataIndex + 6)
+                    .trim(); // Get content after "data: "
                 try {
                   // Try to parse as JSON if possible
                   final parsedData = json.decode(dataPart);
@@ -148,36 +158,36 @@ Future<void> _extractTextFromImage() async {
                     """;
                   });
                   // Get current user's ID
-                final currentUser = FirebaseAuth.instance.currentUser;
-if (currentUser == null) {
-    print("User not logged in!");
-  return;
-}
+                  final currentUser = FirebaseAuth.instance.currentUser;
+                  if (currentUser == null) {
+                    print("User not logged in!");
+                    return;
+                  }
 
-String userId = currentUser.uid;  // Get the current user's ID
-String messageId = "DET${DateTime.now().millisecondsSinceEpoch}"; // Generate a unique message ID
-DateTime now = DateTime.now();  // Get the current date/time
+                  String userId = currentUser.uid; // Get the current user's ID
+                  String messageId =
+                      "DET${DateTime.now().millisecondsSinceEpoch}"; // Generate a unique message ID
+                  DateTime now = DateTime.now(); // Get the current date/time
 
 // Create the message document in the 'messages' subcollection for this user
-try {
-  await FirebaseFirestore.instance
-      .collection('users')
-      .doc(userId)
-      .collection('messages')
-      .doc(messageId)
-      .set({
-    'id': messageId,
-    'text': _textController.text,
-    'classification': classification,
-    'justification': justification,
-    'likelihood': likelihood,
-    'date': now,
-  });
-    print("Message saved successfully!");
-
-} catch (e) {
-    print("Error saving to Firestore: $e");
-}
+                  try {
+                    await FirebaseFirestore.instance
+                        .collection('users')
+                        .doc(userId)
+                        .collection('messages')
+                        .doc(messageId)
+                        .set({
+                      'id': messageId,
+                      'text': _textController.text,
+                      'classification': classification,
+                      'justification': justification,
+                      'likelihood': likelihood,
+                      'date': now,
+                    });
+                    print("Message saved successfully!");
+                  } catch (e) {
+                    print("Error saving to Firestore: $e");
+                  }
                 } catch (e) {
                   // If not JSON, display the data part as-is
                   setState(() {
@@ -196,7 +206,8 @@ try {
             }
           } else {
             setState(() {
-              _result = "Error: GET request failed (${getResponse.statusCode}).";
+              _result =
+                  "Error: GET request failed (${getResponse.statusCode}).";
             });
           }
         } else {
@@ -215,7 +226,8 @@ try {
       });
     }
   }
- @override
+
+  @override
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: const Color(0xFFEDECEC),
@@ -224,20 +236,20 @@ try {
         children: [
           const chatbot(), // Index 0 - Chatbot
           ClassificationContent(
-  pickImage: _pickImage,
-  image: _image,
-  textController: _textController,
-  onCheckMessage: _checkMessage,
-  result: _result,
-  onReset: _resetContent, // Pass the reset function
-),// Index 1 - Classification page
+            pickImage: _pickImage,
+            image: _image,
+            textController: _textController,
+            onCheckMessage: _checkMessage,
+            result: _result,
+            onReset: _resetContent, // Pass the reset function
+          ), // Index 1 - Classification page
           const Profile(), // Index 2 - Profile page
         ],
       ),
       bottomNavigationBar: Visibility(
         visible: _isNavBarVisible,
         child: CurvedNavigationBar(
-          backgroundColor: const Color(0xFFEDECEC),
+          backgroundColor: const Color(0xFFF7F6F6),
           height: 70,
           color: const Color(0xFF2184FC).withOpacity(0.65),
           animationDuration: const Duration(milliseconds: 350),
@@ -295,7 +307,7 @@ class ClassificationContent extends StatelessWidget {
     ValueNotifier<bool> isButtonPressed = ValueNotifier(false);
 
     return Scaffold(
-      backgroundColor: const Color(0xFFEDECEC),
+      backgroundColor: const Color(0xFFF7F6F6),
       resizeToAvoidBottomInset: true,
       body: GestureDetector(
         onTap: () {
@@ -308,14 +320,7 @@ class ClassificationContent extends StatelessWidget {
               Container(
                 height: 100,
                 width: double.infinity,
-                decoration: const BoxDecoration(
-                  gradient: LinearGradient(
-                    colors: [
-                      Color(0xFF2184FC),
-                      Color(0xFFA4E2EC),
-                    ],
-                  ),
-                ),
+                color: Color(0xFF2184FC).withOpacity(0.76),
                 child: Row(
                   mainAxisAlignment: MainAxisAlignment.start,
                   crossAxisAlignment: CrossAxisAlignment.center,
@@ -330,7 +335,10 @@ class ClassificationContent extends StatelessWidget {
                     const SizedBox(width: 10),
                     const Text(
                       "Mirsad's Fraud Detector",
-                      style: TextStyle(color: Colors.white, fontSize: 24, fontWeight: FontWeight.bold),
+                      style: TextStyle(
+                          color: Colors.white,
+                          fontSize: 24,
+                          fontWeight: FontWeight.bold),
                     ),
                   ],
                 ),
@@ -345,7 +353,10 @@ class ClassificationContent extends StatelessWidget {
                         color: Colors.white,
                         borderRadius: BorderRadius.circular(20),
                         boxShadow: [
-                          BoxShadow(color: Colors.black26, blurRadius: 10, offset: Offset(0, 4)),
+                          BoxShadow(
+                              color: Colors.black26,
+                              blurRadius: 10,
+                              offset: Offset(0, 4)),
                         ],
                       ),
                       child: Column(
@@ -353,12 +364,18 @@ class ClassificationContent extends StatelessWidget {
                           const Text(
                             'Got a suspicious message?',
                             textAlign: TextAlign.center,
-                            style: TextStyle(color: Colors.blue, fontSize: 18, fontWeight: FontWeight.bold),
+                            style: TextStyle(
+                                color: Colors.blue,
+                                fontSize: 18,
+                                fontWeight: FontWeight.bold),
                           ),
                           const Text(
                             'Let’s find out if it’s legitimate or a spam!',
                             textAlign: TextAlign.center,
-                            style: TextStyle(color: Colors.blue, fontSize: 18, fontWeight: FontWeight.bold),
+                            style: TextStyle(
+                                color: Colors.blue,
+                                fontSize: 18,
+                                fontWeight: FontWeight.bold),
                           ),
                           const SizedBox(height: 16),
                           Stack(
@@ -368,17 +385,21 @@ class ClassificationContent extends StatelessWidget {
                                 controller: textController,
                                 maxLines: 2,
                                 decoration: InputDecoration(
-                                  hintText: 'Enter text here OR upload screenshot of your message',
+                                  hintText:
+                                      'Enter text here OR upload screenshot of your message',
                                   hintStyle: TextStyle(
                                     fontSize: 15,
                                     color: Color.fromARGB(255, 137, 136, 136),
                                   ),
-                                  border: OutlineInputBorder(borderRadius: BorderRadius.circular(8.0)),
+                                  border: OutlineInputBorder(
+                                      borderRadius: BorderRadius.circular(8.0)),
                                   fillColor: Colors.grey[200],
                                   filled: true,
                                   suffixIcon: IconButton(
                                     onPressed: pickImage,
-                                    icon: Icon(Icons.attach_file, size: 25, color: Colors.blue.withOpacity(0.65)),
+                                    icon: Icon(Icons.attach_file,
+                                        size: 25,
+                                        color: Colors.blue.withOpacity(0.65)),
                                   ),
                                 ),
                               ),
@@ -413,15 +434,20 @@ class ClassificationContent extends StatelessWidget {
                                   valueListenable: isImageHovered,
                                   builder: (context, hover, child) {
                                     return MouseRegion(
-                                      onEnter: (_) => isImageHovered.value = true,
-                                      onExit: (_) => isImageHovered.value = false,
+                                      onEnter: (_) =>
+                                          isImageHovered.value = true,
+                                      onExit: (_) =>
+                                          isImageHovered.value = false,
                                       child: AnimatedContainer(
-                                        duration: const Duration(milliseconds: 200),
+                                        duration:
+                                            const Duration(milliseconds: 200),
                                         height: hover ? 140 : 120,
                                         width: hover ? 140 : 120,
                                         decoration: BoxDecoration(
-                                          borderRadius: BorderRadius.circular(8.0),
-                                          border: Border.all(color: Colors.grey, width: 1),
+                                          borderRadius:
+                                              BorderRadius.circular(8.0),
+                                          border: Border.all(
+                                              color: Colors.grey, width: 1),
                                         ),
                                         child: Image.file(
                                           image!,
@@ -460,7 +486,8 @@ class ClassificationContent extends StatelessWidget {
                               return GestureDetector(
                                 onTapDown: (_) => isButtonPressed.value = true,
                                 onTapUp: (_) => isButtonPressed.value = false,
-                                onTapCancel: () => isButtonPressed.value = false,
+                                onTapCancel: () =>
+                                    isButtonPressed.value = false,
                                 onTap: () async {
                                   await onCheckMessage();
                                 },
@@ -471,19 +498,27 @@ class ClassificationContent extends StatelessWidget {
                                     valueListenable: isButtonPressed,
                                     builder: (context, pressed, child) {
                                       return AnimatedContainer(
-                                        duration: const Duration(milliseconds: 200),
-                                        padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+                                        duration:
+                                            const Duration(milliseconds: 200),
+                                        padding: const EdgeInsets.symmetric(
+                                            horizontal: 24, vertical: 12),
                                         decoration: BoxDecoration(
                                           color: pressed
                                               ? Color.fromARGB(255, 28, 73, 134)
                                               : hover
-                                                  ? Color.fromARGB(255, 165, 203, 248).withOpacity(0.85)
-                                                  : const Color(0xFF2184FC).withOpacity(0.65),
-                                          borderRadius: BorderRadius.circular(8.0),
+                                                  ? Color.fromARGB(
+                                                          255, 165, 203, 248)
+                                                      .withOpacity(0.85)
+                                                  : const Color(0xFF2184FC)
+                                                      .withOpacity(0.65),
+                                          borderRadius:
+                                              BorderRadius.circular(8.0),
                                         ),
                                         child: const Text(
                                           'Check Message',
-                                          style: TextStyle(fontSize: 16, color: Colors.white),
+                                          style: TextStyle(
+                                              fontSize: 16,
+                                              color: Colors.white),
                                         ),
                                       );
                                     },
@@ -526,14 +561,14 @@ class ClassificationContent extends StatelessWidget {
   TextStyle _extractLabelStyle(String result) {
     String label = _extractLabel(result);
     if (label == "SPAM") {
-      return const TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: Colors.red);
+      return const TextStyle(
+          fontSize: 20, fontWeight: FontWeight.bold, color: Colors.red);
     } else if (label == "LEGITIMATE") {
-      return const TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: Colors.green);
+      return const TextStyle(
+          fontSize: 20, fontWeight: FontWeight.bold, color: Colors.green);
     } else {
-      return const TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: Colors.black);
+      return const TextStyle(
+          fontSize: 20, fontWeight: FontWeight.bold, color: Colors.black);
     }
   }
 }
-
-
-
