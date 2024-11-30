@@ -31,7 +31,6 @@ class _ProfileState extends State<Profile> {
   int _currentIndex = 2; // Initially, the profile tab is selected
   bool _isNavBarVisible = true; // Control visibility of bottom navigation bar
 
-  
   String? userName;
   String? userEmail;
   Uint8List? image;
@@ -50,7 +49,6 @@ class _ProfileState extends State<Profile> {
       image = img;
     });
   }
-  
 
   // Fetch the user details from Firestore
   Future<void> _fetchUserDetails() async {
@@ -331,12 +329,7 @@ class _ProfileState extends State<Profile> {
           Container(
             height: double.infinity,
             width: double.infinity,
-            decoration: const BoxDecoration(
-              gradient: LinearGradient(colors: [
-                Color(0xFF2184FC),
-                Color(0xFFA4E2EC),
-              ]),
-            ),
+            color: Color(0xFF2184FC).withOpacity(0.76),
             child: const Padding(
               padding: EdgeInsets.only(top: 60.0, left: 22),
               child: Text(

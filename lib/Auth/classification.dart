@@ -1,5 +1,3 @@
-// ignore_for_file: unused_import
-
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
@@ -27,7 +25,8 @@ class _ClassificationState extends State<Classification> {
   final TextEditingController _textController = TextEditingController();
   String? _result; // To store the result from the API
   File? _image; // To store image
-  final ImagePicker _picker = ImagePicker(); // Create an instance of ImagePicker
+  final ImagePicker _picker =
+      ImagePicker(); // Create an instance of ImagePicker
 
   String? _extractedText = ''; // Store the initial extracted text
   bool _isTextEdited = false; // Flag to track if the text has been edited
@@ -40,7 +39,9 @@ class _ClassificationState extends State<Classification> {
     // Add a listener to the TextEditingController to detect changes in the text field
     _textController.addListener(() {
       // Only remove the image if the text is edited by the user, after it's been set
-      if (_isTextSet && _textController.text != _extractedText && _image != null) {
+      if (_isTextSet &&
+          _textController.text != _extractedText &&
+          _image != null) {
         setState(() {
           _isTextEdited = true; // Mark as edited to prevent repeated triggers
           _image = null; // Remove image after the user starts editing
@@ -50,12 +51,15 @@ class _ClassificationState extends State<Classification> {
   }
 
   Future<void> _pickImage() async {
-    final XFile? pickedFile = await _picker.pickImage(source: ImageSource.gallery);
+    final XFile? pickedFile =
+        await _picker.pickImage(source: ImageSource.gallery);
     if (pickedFile != null) {
       setState(() {
         _image = File(pickedFile.path); // Store the image file
-        _textController.clear(); // Clear any existing text in the field immediately
-        _isTextEdited = false; // Reset the edit flag to prevent premature image removal
+        _textController
+            .clear(); // Clear any existing text in the field immediately
+        _isTextEdited =
+            false; // Reset the edit flag to prevent premature image removal
         _extractedText = ''; // Reset the extracted text
         _isTextSet = false; // Reset the flag to false
       });
@@ -65,7 +69,7 @@ class _ClassificationState extends State<Classification> {
     }
   }
 
-  // Reset function
+// Reset function
   void _resetContent() {
     _textController.clear(); // Clear the text field
     setState(() {
@@ -80,7 +84,8 @@ class _ClassificationState extends State<Classification> {
     try {
       final textRecognizer = TextRecognizer();
       final InputImage inputImage = InputImage.fromFile(_image!);
-      final RecognizedText recognizedText = await textRecognizer.processImage(inputImage);
+      final RecognizedText recognizedText =
+          await textRecognizer.processImage(inputImage);
 
       setState(() {
         // Set extracted text to the text field
@@ -97,11 +102,17 @@ class _ClassificationState extends State<Classification> {
     }
   }
 
+  // API calling to Huggingface space -shdn
   Future<void> _checkMessage() async {
-    String baseUrl = "https://shdnalssheddi-mirsad-classifier.hf.space/gradio_api/call/predict";
+    String baseUrl =
+        "https://shdnalssheddi-mirsad-classifier.hf.space/gradio_api/call/predict";
     try {
-      Map<String, dynamic> payload = {"data": [_textController.text]};
+      // Prepare the payload
+      Map<String, dynamic> payload = {
+        "data": [_textController.text]
+      };
 
+      // Make the POST request
       final postResponse = await http.post(
         Uri.parse(baseUrl),
         headers: {"Content-Type": "application/json"},
@@ -115,23 +126,29 @@ class _ClassificationState extends State<Classification> {
           String eventId = postResponseBody['event_id'];
           String resultUrl = "$baseUrl/$eventId";
 
+          // Fetch the result
           final getResponse = await http.get(Uri.parse(resultUrl));
 
           if (getResponse.statusCode == 200) {
+            // Check if the response starts with "event:"
             String responseBody = getResponse.body;
-
             if (responseBody.startsWith("event:")) {
+              // Extract the "data" part
               final dataIndex = responseBody.indexOf("data: ");
               if (dataIndex != -1) {
-                String dataPart = responseBody.substring(dataIndex + 6).trim();
-
+                String dataPart = responseBody
+                    .substring(dataIndex + 6)
+                    .trim(); // Get content after "data: "
                 try {
+                  // Try to parse as JSON if possible
                   final parsedData = json.decode(dataPart);
 
+                  // Extract the classification result
                   String classification = parsedData["data"][0][0];
                   String justification = parsedData["data"][0][1];
                   String likelihood = parsedData["data"][0][2];
 
+                  // Display the label, hold justification and likelihood for now
                   setState(() {
                     _result = """
                       Classification: 
@@ -140,7 +157,9 @@ class _ClassificationState extends State<Classification> {
                       Likelihood: $likelihood
                     """;
                   });
+                  
                 } catch (e) {
+                  // If not JSON, display the data part as-is
                   setState(() {
                     _result = dataPart;
                   });
@@ -157,7 +176,8 @@ class _ClassificationState extends State<Classification> {
             }
           } else {
             setState(() {
-              _result = "Error: GET request failed (${getResponse.statusCode}).";
+              _result =
+                  "Error: GET request failed (${getResponse.statusCode}).";
             });
           }
         } else {
@@ -199,7 +219,7 @@ class _ClassificationState extends State<Classification> {
       bottomNavigationBar: Visibility(
         visible: _isNavBarVisible,
         child: CurvedNavigationBar(
-          backgroundColor: const Color(0xFFEDECEC),
+          backgroundColor: const Color(0xFFF7F6F6),
           height: 70,
           color: const Color(0xFF2184FC).withOpacity(0.65),
           animationDuration: const Duration(milliseconds: 350),
@@ -257,7 +277,7 @@ class ClassificationContent extends StatelessWidget {
     ValueNotifier<bool> isButtonPressed = ValueNotifier(false);
 
     return Scaffold(
-      backgroundColor: const Color(0xFFEDECEC),
+      backgroundColor: const Color(0xFFF7F6F6),
       resizeToAvoidBottomInset: true,
       body: GestureDetector(
         onTap: () {
@@ -270,14 +290,7 @@ class ClassificationContent extends StatelessWidget {
               Container(
                 height: 100,
                 width: double.infinity,
-                decoration: const BoxDecoration(
-                  gradient: LinearGradient(
-                    colors: [
-                      Color(0xFF2184FC),
-                      Color(0xFFA4E2EC),
-                    ],
-                  ),
-                ),
+                color: Color(0xFF2184FC).withOpacity(0.76),
                 child: Row(
                   mainAxisAlignment: MainAxisAlignment.start,
                   crossAxisAlignment: CrossAxisAlignment.center,
@@ -292,7 +305,10 @@ class ClassificationContent extends StatelessWidget {
                     const SizedBox(width: 10),
                     const Text(
                       "Mirsad's Fraud Detector",
-                      style: TextStyle(color: Colors.white, fontSize: 24, fontWeight: FontWeight.bold),
+                      style: TextStyle(
+                          color: Colors.white,
+                          fontSize: 24,
+                          fontWeight: FontWeight.bold),
                     ),
                   ],
                 ),
@@ -307,7 +323,10 @@ class ClassificationContent extends StatelessWidget {
                         color: Colors.white,
                         borderRadius: BorderRadius.circular(20),
                         boxShadow: [
-                          BoxShadow(color: Colors.black26, blurRadius: 10, offset: Offset(0, 4)),
+                          BoxShadow(
+                              color: Colors.black26,
+                              blurRadius: 10,
+                              offset: Offset(0, 4)),
                         ],
                       ),
                       child: Column(
@@ -315,12 +334,18 @@ class ClassificationContent extends StatelessWidget {
                           const Text(
                             'Got a suspicious message?',
                             textAlign: TextAlign.center,
-                            style: TextStyle(color: Colors.blue, fontSize: 18, fontWeight: FontWeight.bold),
+                            style: TextStyle(
+                                color: Colors.blue,
+                                fontSize: 18,
+                                fontWeight: FontWeight.bold),
                           ),
                           const Text(
                             'Let’s find out if it’s legitimate or a spam!',
                             textAlign: TextAlign.center,
-                            style: TextStyle(color: Colors.blue, fontSize: 18, fontWeight: FontWeight.bold),
+                            style: TextStyle(
+                                color: Colors.blue,
+                                fontSize: 18,
+                                fontWeight: FontWeight.bold),
                           ),
                           const SizedBox(height: 16),
                           Stack(
@@ -330,17 +355,21 @@ class ClassificationContent extends StatelessWidget {
                                 controller: textController,
                                 maxLines: 2,
                                 decoration: InputDecoration(
-                                  hintText: 'Enter text here OR upload screenshot of your message',
+                                  hintText:
+                                      'Enter text here OR upload screenshot of your message',
                                   hintStyle: TextStyle(
                                     fontSize: 15,
                                     color: Color.fromARGB(255, 137, 136, 136),
                                   ),
-                                  border: OutlineInputBorder(borderRadius: BorderRadius.circular(8.0)),
+                                  border: OutlineInputBorder(
+                                      borderRadius: BorderRadius.circular(8.0)),
                                   fillColor: Colors.grey[200],
                                   filled: true,
                                   suffixIcon: IconButton(
                                     onPressed: pickImage,
-                                    icon: Icon(Icons.attach_file, size: 25, color: Colors.blue.withOpacity(0.65)),
+                                    icon: Icon(Icons.attach_file,
+                                        size: 25,
+                                        color: Colors.blue.withOpacity(0.65)),
                                   ),
                                 ),
                               ),
@@ -372,27 +401,32 @@ class ClassificationContent extends StatelessWidget {
                               clipBehavior: Clip.none,
                               children: [
                                 ValueListenableBuilder<bool>(
-  valueListenable: isImageHovered,
-  builder: (context, hover, child) {
-    return MouseRegion(
-      onEnter: (_) => isImageHovered.value = true,
-      onExit: (_) => isImageHovered.value = false,
-      child: AnimatedContainer(
-        duration: const Duration(milliseconds: 200),
-        height: hover ? 140 : 120,
-        width: hover ? 140 : 120,
-        decoration: BoxDecoration(
-          borderRadius: BorderRadius.circular(8.0),
-          border: Border.all(color: Colors.grey, width: 1),
-        ),
-        child: Image.file(
-          image!,
-          fit: BoxFit.cover,
-        ),
-      ),
-    );
-  },
-),
+                                  valueListenable: isImageHovered,
+                                  builder: (context, hover, child) {
+                                    return MouseRegion(
+                                      onEnter: (_) =>
+                                          isImageHovered.value = true,
+                                      onExit: (_) =>
+                                          isImageHovered.value = false,
+                                      child: AnimatedContainer(
+                                        duration:
+                                            const Duration(milliseconds: 200),
+                                        height: hover ? 140 : 120,
+                                        width: hover ? 140 : 120,
+                                        decoration: BoxDecoration(
+                                          borderRadius:
+                                              BorderRadius.circular(8.0),
+                                          border: Border.all(
+                                              color: Colors.grey, width: 1),
+                                        ),
+                                        child: Image.file(
+                                          image!,
+                                          fit: BoxFit.cover,
+                                        ),
+                                      ),
+                                    );
+                                  },
+                                ),
                                 Positioned(
                                   top: -10,
                                   left: -10,
@@ -417,59 +451,52 @@ class ClassificationContent extends StatelessWidget {
                             ),
                           const SizedBox(height: 16),
                           ValueListenableBuilder<bool>(
-  valueListenable: isButtonHovered,
-  builder: (context, hover, child) {
-    return GestureDetector(
-      onTapDown: (_) {
-        isButtonPressed.value = true;
-        print("Button pressed!");
-      },
-      onTapUp: (_) {
-        isButtonPressed.value = false;
-        print("Button released!");
-      },
-      onTapCancel: () {
-        isButtonPressed.value = false;
-        print("Tap cancelled!");
-      },
-      onTap: () async {
-        print("Button tapped!");
-        await onCheckMessage();
-      },
-      child: MouseRegion(
-        onEnter: (_) {
-          isButtonHovered.value = true;
-          print("Button hovered!");
-        },
-        onExit: (_) {
-          isButtonHovered.value = false;
-          print("Hover exited!");
-        },
-        child: ValueListenableBuilder<bool>(
-          valueListenable: isButtonPressed,
-          builder: (context, pressed, child) {
-            return AnimatedContainer(
-              duration: const Duration(milliseconds: 200),
-              padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
-              decoration: BoxDecoration(
-                color: pressed
-                    ? const Color.fromARGB(255, 28, 73, 134) // Pressed color
-                    : hover
-                        ? const Color.fromARGB(255, 165, 203, 248).withOpacity(0.85) // Hover color
-                        : const Color(0xFF2184FC).withOpacity(0.65), // Default color
-                borderRadius: BorderRadius.circular(8.0),
-              ),
-              child: const Text(
-                'Check Message',
-                style: TextStyle(fontSize: 16, color: Colors.white),
-              ),
-            );
-          },
-        ),
-      ),
-    );
-  },
-),
+                            valueListenable: isButtonHovered,
+                            builder: (context, hover, child) {
+                              return GestureDetector(
+                                onTapDown: (_) => isButtonPressed.value = true,
+                                onTapUp: (_) => isButtonPressed.value = false,
+                                onTapCancel: () =>
+                                    isButtonPressed.value = false,
+                                onTap: () async {
+                                  await onCheckMessage();
+                                },
+                                child: MouseRegion(
+                                  onEnter: (_) => isButtonHovered.value = true,
+                                  onExit: (_) => isButtonHovered.value = false,
+                                  child: ValueListenableBuilder<bool>(
+                                    valueListenable: isButtonPressed,
+                                    builder: (context, pressed, child) {
+                                      return AnimatedContainer(
+                                        duration:
+                                            const Duration(milliseconds: 200),
+                                        padding: const EdgeInsets.symmetric(
+                                            horizontal: 24, vertical: 12),
+                                        decoration: BoxDecoration(
+                                          color: pressed
+                                              ? Color.fromARGB(255, 28, 73, 134)
+                                              : hover
+                                                  ? Color.fromARGB(
+                                                          255, 165, 203, 248)
+                                                      .withOpacity(0.85)
+                                                  : const Color(0xFF2184FC)
+                                                      .withOpacity(0.65),
+                                          borderRadius:
+                                              BorderRadius.circular(8.0),
+                                        ),
+                                        child: const Text(
+                                          'Check Message',
+                                          style: TextStyle(
+                                              fontSize: 16,
+                                              color: Colors.white),
+                                        ),
+                                      );
+                                    },
+                                  ),
+                                ),
+                              );
+                            },
+                          ),
                           const SizedBox(height: 16),
                           if (result != null)
                             Text(
@@ -498,20 +525,20 @@ class ClassificationContent extends StatelessWidget {
       if (label == "spam") return "";
       if (label == "not") return "";
     }
-    return "Unknown";
+    return "";
   }
 
   TextStyle _extractLabelStyle(String result) {
     String label = _extractLabel(result);
     if (label == "") {
-      return const TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: Colors.red);
+      return const TextStyle(
+          fontSize: 20, fontWeight: FontWeight.bold, color: Colors.red);
     } else if (label == "") {
-      return const TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: Colors.green);
+      return const TextStyle(
+          fontSize: 20, fontWeight: FontWeight.bold, color: Colors.green);
     } else {
-      return const TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: Colors.black);
+      return const TextStyle(
+          fontSize: 20, fontWeight: FontWeight.bold, color: Colors.black);
     }
   }
 }
-
-
-
