@@ -24,6 +24,13 @@ class _LogInState extends State<LogIn> {
 
   String? emailErrorMessage;
   String? passwordErrorMessage;
+  bool isPasswordVisible = false; 
+// Function to toggle password visibility
+  void togglePasswordVisibility() {
+    setState(() {
+      isPasswordVisible = !isPasswordVisible;
+    });
+  }
 
   void _logIn() async {
     setState(() {
@@ -226,8 +233,15 @@ class _LogInState extends State<LogIn> {
                     borderSide: BorderSide(color: Colors.white),
                   ),
                   errorText: passwordErrorMessage,
+                suffixIcon: IconButton(
+                    icon: Icon(
+                      isPasswordVisible ? Icons.visibility : Icons.visibility_off,
+                      color: Colors.grey,
+                    ),
+                    onPressed: togglePasswordVisibility,
+                  ),
                 ),
-                obscureText: true,
+                obscureText: !isPasswordVisible,
               ),
               SizedBox(height: 25),
 

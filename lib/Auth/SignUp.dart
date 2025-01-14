@@ -29,6 +29,23 @@ class _SignUpState extends State<SignUp> {
   bool isEmailValid = true;
   bool isUsernameValid = true;
 
+   bool isPasswordVisible = false; // To toggle password visibility
+  bool isReenterPasswordVisible = false; // To toggle re-enter password visibility
+
+  // Function to toggle password visibility
+  void togglePasswordVisibility() {
+    setState(() {
+      isPasswordVisible = !isPasswordVisible;
+    });
+  }
+
+  // Function to toggle re-enter password visibility
+  void toggleReenterPasswordVisibility() {
+    setState(() {
+      isReenterPasswordVisible = !isReenterPasswordVisible;
+    });
+  }
+
   final _formKey = GlobalKey<FormState>();
 
   // Track user interactions
@@ -97,62 +114,64 @@ class _SignUpState extends State<SignUp> {
   }
 
   // Function to handle sign-up logic
-Future<void> _signUp() async {
-  setState(() {
-    // Update validation flags
-    hasUserInteractedWithUsername = true;
-    hasUserInteractedWithEmail = true;
-    hasUserInteractedWithPassword = true;
-    hasUserInteractedWithReenterPassword = true;
-    
-    // Validate fields
-    isUsernameValid = usernameController.text.trim().isNotEmpty;
-    isEmailValid = isValidEmail(emailController.text.trim());
-    isPasswordValid = validatePasswordStructure(passwordController.text.trim());
-    isReenteredPasswordMatching = passwordController.text.trim() == reenterPasswordController.text.trim();
-    
-    // Update specific error messages
-    if (!isEmailValid) {
-      emailErrorMessage = 'Please enter a valid email';
-    }
-  });
-
-  // If any validation fails, stop sign-up process
-  if (!isUsernameValid || !isEmailValid || !isPasswordValid || !isReenteredPasswordMatching) {
-    return;
-  }
-
-  showLoadingDialog(); // Show loading dialog if all fields are valid
-  try {
-    UserCredential userCredential = await _auth.createUserWithEmailAndPassword(
-      email: emailController.text.trim(),
-      password: passwordController.text.trim(),
-    );
-
-    // Hash the password
-    String hashedPassword = hashPassword(passwordController.text.trim());
-
-    await _firestore.collection('users').doc(userCredential.user!.uid).set({
-      'uid': userCredential.user!.uid,
-      'username': usernameController.text.trim(),
-      'email': emailController.text.trim(),
-      'password': hashedPassword,
-    });
-
-    Navigator.pop(context); // Close the loading dialog
-    ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Sign-up successful!')));
-    Navigator.pushReplacement(
-      context,
-      MaterialPageRoute(builder: (context) => const LogIn()),
-    );
-  } on FirebaseAuthException catch (e) {
-    Navigator.pop(context); // Close the loading dialog
+  Future<void> _signUp() async {
     setState(() {
-      emailErrorMessage = e.code == 'email-already-in-use' ? 'This email is already taken' : 'An unknown error occurred';
-      isEmailValid = false;
+      hasUserInteractedWithUsername = true;
+      hasUserInteractedWithEmail = true;
+      hasUserInteractedWithPassword = true;
+      hasUserInteractedWithReenterPassword = true;
+
+      isUsernameValid = usernameController.text.trim().isNotEmpty;
+      isEmailValid = isValidEmail(emailController.text.trim());
+      isPasswordValid = validatePasswordStructure(passwordController.text.trim());
+      isReenteredPasswordMatching = passwordController.text.trim() ==
+          reenterPasswordController.text.trim();
+
+      if (!isEmailValid) {
+        emailErrorMessage = 'Please enter a valid email';
+      }
     });
+
+    if (!isUsernameValid || !isEmailValid || !isPasswordValid || !isReenteredPasswordMatching) {
+      return;
+    }
+
+    showLoadingDialog();
+    try {
+      UserCredential userCredential = await _auth.createUserWithEmailAndPassword(
+        email: emailController.text.trim(),
+        password: passwordController.text.trim(),
+      );
+
+      // Send verification email
+      User? user = userCredential.user;
+      await user?.sendEmailVerification();
+
+      // Hash the password
+      String hashedPassword = hashPassword(passwordController.text.trim());
+
+      await _firestore.collection('users').doc(user!.uid).set({
+        'uid': user.uid,
+        'username': usernameController.text.trim(),
+        'email': emailController.text.trim(),
+        'password': hashedPassword,
+      });
+
+      Navigator.pop(context);
+      Navigator.pushReplacement(
+        context,
+        MaterialPageRoute(builder: (context) => VerifyEmail(user: user)),
+      );
+    } on FirebaseAuthException catch (e) {
+      Navigator.pop(context);
+      setState(() {
+        emailErrorMessage = e.code == 'email-already-in-use'
+            ? 'This email is already taken'
+            : 'An unknown error occurred';
+        isEmailValid = false;
+      });
+    }
   }
-}
 
   @override
   Widget build(BuildContext context) {
@@ -315,8 +334,15 @@ Future<void> _signUp() async {
                     borderSide: BorderSide(
                         color: isPasswordValid ? Colors.white : Colors.red),
                   ),
+                  suffixIcon: IconButton(
+                    icon: Icon(
+                      isPasswordVisible ? Icons.visibility : Icons.visibility_off,
+                      color: Colors.grey,
+                    ),
+                    onPressed: togglePasswordVisibility,
+                  ),
                 ),
-                obscureText: true,
+                obscureText: !isPasswordVisible,
                 onChanged: (_) {
                   hasUserInteractedWithPassword = true;
                   updateValidation();
@@ -359,8 +385,17 @@ Future<void> _signUp() async {
                             ? Colors.white
                             : Colors.red),
                   ),
+                suffixIcon: IconButton(
+                    icon: Icon(
+                      isReenterPasswordVisible
+                          ? Icons.visibility
+                          : Icons.visibility_off,
+                      color: Colors.grey,
+                    ),
+                    onPressed: toggleReenterPasswordVisibility,
+                  ),
                 ),
-                obscureText: true,
+                obscureText: !isReenterPasswordVisible,
                 onChanged: (_) {
                   hasUserInteractedWithReenterPassword = true;
                   updateValidation();
@@ -421,3 +456,142 @@ Future<void> _signUp() async {
     );
   }
 }
+class VerifyEmail extends StatelessWidget {
+  final User user;
+
+  const VerifyEmail({Key? key, required this.user}) : super(key: key);
+
+  Future<void> resendVerificationEmail(User user) async {
+    await user.sendEmailVerification();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar( // Correct placement here
+        title: Text(
+          'Verify Email',
+          style: TextStyle(color: Colors.white), // Text color set to white
+        ),
+        leading: IconButton(
+          icon: Icon(Icons.arrow_back, color: Colors.white), // Icon color set to white
+          onPressed: () {
+            Navigator.pop(context);
+          },
+        ),
+        elevation: 0, 
+      ),
+      body: Container(
+        decoration: BoxDecoration(
+          gradient: LinearGradient(
+            begin: Alignment.topCenter,
+            end: Alignment.bottomCenter,
+            colors: [
+              Color(0xFF1D76E2),
+              Color(0xFF2184FC),
+              Color(0xFF4D9CFC),
+              Color(0xFF7DB4F6),
+              Color(0xFFC1DDFF),
+              Color(0xFFC1DDF3),
+            ],
+          ),
+        ),
+        padding: const EdgeInsets.symmetric(horizontal: 20.0),
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Align(
+              alignment: Alignment.center,
+              child: Container(
+                height: 100,
+                width: 100,
+                decoration: BoxDecoration(
+                  borderRadius: BorderRadius.circular(70),
+                  color: Colors.white.withOpacity(0.75),
+                ),
+                child: Image.asset('img/Mirsad2.png'),
+              ),
+            ),
+            SizedBox(height: 30),
+            Text(
+              "Verify Your Email",
+              style: TextStyle(
+                fontSize: 20,
+                fontWeight: FontWeight.bold,
+                color: Colors.white,
+              ),
+            ),
+            SizedBox(height: 20),
+            Text(
+              "A verification email has been sent to ${user.email}. Please check your inbox.",
+              textAlign: TextAlign.center,
+              style: TextStyle(
+                fontSize: 16,
+                color: Colors.white,
+              ),
+            ),
+            SizedBox(height: 30),
+            ElevatedButton(
+              style: ElevatedButton.styleFrom(
+                backgroundColor: Color(0xFF1C7ECE),
+                minimumSize: Size(double.infinity, 53),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(13),
+                ),
+              ),
+              onPressed: () => resendVerificationEmail(user),
+              child: Text(
+                "Resend Email",
+                style: TextStyle(fontSize: 18, color: Colors.white),
+              ),
+            ),
+            SizedBox(height: 20),
+            ElevatedButton(
+              style: ElevatedButton.styleFrom(
+                backgroundColor: Color(0xFF1C7ECE),
+                minimumSize: Size(double.infinity, 53),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(13),
+                ),
+              ),
+              onPressed: () async {
+                await user.reload(); // Reload user data
+                User? updatedUser = FirebaseAuth.instance.currentUser; 
+                if (updatedUser != null && updatedUser.emailVerified) {
+                  Navigator.pushReplacement(
+                    context,
+                    MaterialPageRoute(builder: (context) => LogIn()),
+                  );
+                } else {
+                  showDialog(
+                    context: context,
+                    builder: (BuildContext context) {
+                      return AlertDialog(
+                        title: Text("Email Not Verified"),
+                        content: Text(
+                            "Your email has not been verified. Please check your inbox and try again."),
+                        actions: [
+                          TextButton(
+                            onPressed: () {
+                              Navigator.of(context).pop();
+                            },
+                            child: Text("Close"),
+                          ),
+                        ],
+                      );
+                    },
+                  );
+                }
+              },
+              child: Text(
+                "I've Verified My Email",
+                style: TextStyle(fontSize: 18, color: Colors.white),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
