@@ -273,6 +273,7 @@ class _ProfileState extends State<Profile> {
           const SnackBar(content: Text('Account successfully deleted.')),
         );
       } on FirebaseAuthException catch (e) {
+        // Show the error message in a visible SnackBar
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(content: Text(e.message ?? 'Failed to delete account')),
         );
@@ -289,36 +290,77 @@ class _ProfileState extends State<Profile> {
     String? password;
     final TextEditingController passwordController = TextEditingController();
 
+    bool isPasswordInvalid = false; // Flag to track if the password is invalid
+
     await showDialog<String>(
       context: context,
       builder: (BuildContext context) {
-        return AlertDialog(
-          title: const Text('Confirm Password'),
-          content: TextField(
-            controller: passwordController,
-            obscureText: true,
-            decoration: const InputDecoration(hintText: 'Enter your password'),
-          ),
-          actions: <Widget>[
-            TextButton(
-              child: const Text('Cancel'),
-              onPressed: () {
-                Navigator.of(context).pop();
-              },
-            ),
-            TextButton(
-              child: const Text('Confirm'),
-              onPressed: () {
-                password = passwordController.text;
-                Navigator.of(context).pop();
-              },
-            ),
-          ],
+        return StatefulBuilder(
+          builder: (context, setState) {
+            return AlertDialog(
+              title: const Text('Confirm Password'),
+              content: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  TextField(
+                    controller: passwordController,
+                    obscureText: true,
+                    decoration:
+                        const InputDecoration(hintText: 'Enter your password'),
+                  ),
+                  if (isPasswordInvalid)
+                    const Padding(
+                      padding: EdgeInsets.only(top: 8.0),
+                      child: Text(
+                        'Incorrect password. Please try again.',
+                        style: TextStyle(color: Colors.red, fontSize: 14),
+                      ),
+                    ),
+                ],
+              ),
+              actions: <Widget>[
+                TextButton(
+                  child: const Text('Cancel'),
+                  onPressed: () {
+                    Navigator.of(context).pop();
+                  },
+                ),
+                TextButton(
+                  child: const Text('Confirm'),
+                  onPressed: () async {
+                    password = passwordController.text;
+
+                    // Check if the password is correct before closing
+                    User? user = FirebaseAuth.instance.currentUser;
+                    if (user != null) {
+                      try {
+                        // Try to reauthenticate
+                        AuthCredential credential =
+                            EmailAuthProvider.credential(
+                          email: user.email!,
+                          password: password!,
+                        );
+                        await user.reauthenticateWithCredential(credential);
+
+                        Navigator.of(context)
+                            .pop(password); // Success, return password
+                      } on FirebaseAuthException catch (e) {
+                        setState(() {
+                          isPasswordInvalid =
+                              true; // Show error message if password is incorrect
+                        });
+                      }
+                    }
+                  },
+                ),
+              ],
+            );
+          },
         );
       },
     );
 
-    return password;
+    return password; // Return the password after the dialog is dismissed
   }
 
   @override
