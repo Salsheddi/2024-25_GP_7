@@ -5,6 +5,7 @@ import 'package:curved_navigation_bar/curved_navigation_bar.dart';
 import 'package:mirsad/Auth/Profile.dart';
 import 'package:mirsad/Auth/chatbot.dart';
 import 'package:mirsad/Auth/classification.dart';
+import 'package:mirsad/Auth/reportScam.dart';
 
 class Home extends StatefulWidget {
   const Home({super.key});
@@ -177,7 +178,11 @@ class HomeContent extends StatelessWidget {
                 // Report a Scam Card
                 InkWell(
                   onTap: () {
-                    // Handle report scam navigation
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                          builder: (context) => const ReportScam()),
+                    );
                   },
                   child: Container(
                     width: MediaQuery.of(context).size.width / 2 - 24,
