@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:curved_navigation_bar/curved_navigation_bar.dart';
 
 class ReportScam extends StatefulWidget {
@@ -11,8 +13,11 @@ class ReportScam extends StatefulWidget {
 class _ReportScamState extends State<ReportScam>
     with SingleTickerProviderStateMixin {
   late TabController _tabController;
-  int _currentIndex = 1; // Default to the second tab (Home)
-  bool _isNavBarVisible = true; // To control visibility of the navbar
+  int _currentIndex = 1;
+  bool _isNavBarVisible = true;
+  final TextEditingController _messageController = TextEditingController();
+  final FirebaseFirestore firestore = FirebaseFirestore.instance;
+  final FirebaseAuth auth = FirebaseAuth.instance;
 
   @override
   void initState() {
@@ -23,7 +28,121 @@ class _ReportScamState extends State<ReportScam>
   @override
   void dispose() {
     _tabController.dispose();
+    _messageController.dispose();
     super.dispose();
+  }
+
+  String generateContentHash(String content) {
+    return content.hashCode.toString();
+  }
+
+  Future<void> reportMessage(String content) async {
+  final String userId = auth.currentUser?.uid ?? ''; // Get the current user's ID
+  if (userId.isEmpty) {
+    _showMessage('User not logged in.');
+    return;
+  }
+
+  final String contentHash = generateContentHash(content);
+
+  // Check if the user has already reported this message
+  final QuerySnapshot existingReport = await firestore
+      .collection('reportedMessages')
+      .where('contentHash', isEqualTo: contentHash)
+      .where('userId', isEqualTo: userId)
+      .get();
+
+  if (existingReport.docs.isNotEmpty) {
+    _showAlreadyReportedDialog();
+    return;
+  }
+
+  final String messageId = "RE${DateTime.now().millisecondsSinceEpoch}";
+
+  // Add the new report
+  await firestore.collection('reportedMessages').doc(messageId).set({
+    'userId': userId,
+    'content': content,
+    'reportedAt': FieldValue.serverTimestamp(),
+    'contentHash': contentHash,
+  });
+
+  // Increment the report count
+  await incrementReportCount(contentHash, content);
+
+  _showMessage('Message reported successfully.');
+}
+
+Future<void> incrementReportCount(String contentHash, String content) async {
+  final DocumentReference summaryDoc =
+      firestore.collection('reportedMessagesSummary').doc(contentHash);
+
+  await firestore.runTransaction((transaction) async {
+    final snapshot = await transaction.get(summaryDoc);
+
+    if (!snapshot.exists) {
+      // Initialize the count if it doesn't exist
+      transaction.set(summaryDoc, {
+        'content': content,
+        'reportCount': 1,
+        'reportedUsers': [auth.currentUser?.uid],
+      });
+    } else {
+      final data = snapshot.data() as Map<String, dynamic>;
+      final List<dynamic> reportedUsers = data['reportedUsers'] ?? [];
+
+      if (!reportedUsers.contains(auth.currentUser?.uid)) {
+        // Add the user to the reported users list if not already reported
+        reportedUsers.add(auth.currentUser?.uid);
+        transaction.update(summaryDoc, {
+          'reportCount': reportedUsers.length,
+          'reportedUsers': reportedUsers,
+        });
+      }
+    }
+  });
+}
+
+  void _showAlreadyReportedDialog() {
+    showDialog(
+      context: context,
+      builder: (BuildContext context) {
+        return AlertDialog(
+          title: const Text('Message Already Reported'),
+          content: const Text(
+              'You have already reported this message. No duplicate reports are allowed.'),
+          actions: [
+            TextButton(
+              onPressed: () {
+                Navigator.of(context).pop(); // Close the dialog
+              },
+              child: const Text(
+                'Close',
+                style: TextStyle(color: Colors.blue),
+              ),
+            ),
+          ],
+        );
+      },
+    );
+  }
+
+  void _showMessage(String message) {
+    ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(message)));
+  }
+
+  // Fetch all the reported messages from the Community tab
+  Stream<List<Map<String, dynamic>>> getReportedMessages() {
+    return firestore.collection('reportedMessagesSummary').snapshots().map(
+      (snapshot) {
+        return snapshot.docs.map((doc) {
+          return {
+            'content': doc['content'],
+            'reportCount': doc['reportCount'],
+          };
+        }).toList();
+      },
+    );
   }
 
   @override
@@ -86,13 +205,11 @@ class _ReportScamState extends State<ReportScam>
                     labelColor: Colors.black,
                     unselectedLabelColor: Colors.grey,
                     labelStyle: const TextStyle(
-                      // Style for selected tabs
-                      fontSize: 18, // Adjust this size
+                      fontSize: 18,
                       fontWeight: FontWeight.bold,
                     ),
                     unselectedLabelStyle: const TextStyle(
-                      // Style for unselected tabs
-                      fontSize: 16, // Adjust this size
+                      fontSize: 16,
                     ),
                     tabs: const [
                       Tab(text: "Report"),
@@ -116,13 +233,13 @@ class _ReportScamState extends State<ReportScam>
                                 clipBehavior: Clip.none,
                                 children: [
                                   TextFormField(
+                                    controller: _messageController,
                                     maxLines: 3,
                                     decoration: InputDecoration(
                                       hintText: 'Enter text here..',
                                       hintStyle: const TextStyle(
                                         fontSize: 15,
-                                        color:
-                                            Color.fromARGB(255, 137, 136, 136),
+                                        color: Color.fromARGB(255, 137, 136, 136),
                                       ),
                                       border: OutlineInputBorder(
                                           borderRadius:
@@ -135,8 +252,7 @@ class _ReportScamState extends State<ReportScam>
                                         },
                                         icon: Icon(Icons.attach_file,
                                             size: 25,
-                                            color:
-                                                Colors.blue.withOpacity(0.65)),
+                                            color: Colors.blue.withOpacity(0.65)),
                                       ),
                                     ),
                                   ),
@@ -145,7 +261,7 @@ class _ReportScamState extends State<ReportScam>
                                     left: -10,
                                     child: GestureDetector(
                                       onTap: () {
-                                        // Handle delete action
+                                        _messageController.clear(); // Clear text
                                       },
                                       child: Container(
                                         width: 24,
@@ -170,7 +286,13 @@ class _ReportScamState extends State<ReportScam>
                               // Report Message button
                               ElevatedButton(
                                 onPressed: () {
-                                  // Handle button press
+                                  final content = _messageController.text.trim();
+                                  if (content.isEmpty) {
+                                    _showMessage('Please enter a message.');
+                                    return;
+                                  }
+                                  reportMessage(content);
+                                  _messageController.clear();
                                 },
                                 style: ElevatedButton.styleFrom(
                                   backgroundColor: const Color(0xFF2184FC),
@@ -182,8 +304,7 @@ class _ReportScamState extends State<ReportScam>
                                 ),
                                 child: const Text(
                                   "Report Message",
-                                  style: TextStyle(
-                                      fontSize: 16, color: Colors.white),
+                                  style: TextStyle(fontSize: 16, color: Colors.white),
                                 ),
                               ),
                             ],
@@ -191,14 +312,30 @@ class _ReportScamState extends State<ReportScam>
                         ),
 
                         // Community Tab
-                        Center(
-                          child: Text(
-                            "Community Page",
-                            style: TextStyle(
-                              fontSize: 18,
-                              color: Colors.grey[700],
-                            ),
-                          ),
+                        StreamBuilder<List<Map<String, dynamic>>>(
+                          stream: getReportedMessages(),
+                          builder: (context, snapshot) {
+                            if (snapshot.connectionState == ConnectionState.waiting) {
+                              return const Center(child: CircularProgressIndicator());
+                            }
+
+                            if (snapshot.hasError) {
+                              return const Center(child: Text('Error loading data.'));
+                            }
+
+                            final reportedMessages = snapshot.data ?? [];
+
+                            return ListView.builder(
+                              itemCount: reportedMessages.length,
+                              itemBuilder: (context, index) {
+                                final message = reportedMessages[index];
+                                return ListTile(
+                                  title: Text(message['content']),
+                                  subtitle: Text('Reported ${message['reportCount']} times'),
+                                );
+                              },
+                            );
+                          },
                         ),
                       ],
                     ),
@@ -221,18 +358,7 @@ class _ReportScamState extends State<ReportScam>
           index: _currentIndex,
           onTap: (index) {
             setState(() {
-              // If the Home button (index 1) is clicked, go directly to Home (index 0)
-              if (index == 1) {
-                // Directly navigate to Home page
-                _currentIndex = 0;
-                Navigator.pushReplacement(
-                  context,
-                  MaterialPageRoute(builder: (context) => const ReportScam()),
-                );
-              } else {
-                // Update the current index based on the tapped tab
-                _currentIndex = index;
-              }
+              _currentIndex = index;
             });
           },
           items: const [
@@ -245,3 +371,4 @@ class _ReportScamState extends State<ReportScam>
     );
   }
 }
+
