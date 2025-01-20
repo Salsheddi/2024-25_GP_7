@@ -259,232 +259,339 @@ class _ReportScamState extends State<ReportScam>
           // White content area with rounded corners
           Padding(
             padding: const EdgeInsets.only(top: 115.0),
-            child: Container(
-              decoration: const BoxDecoration(
-                borderRadius: BorderRadius.only(
-                  topLeft: Radius.circular(40),
-                  topRight: Radius.circular(40),
-                ),
-                color: Color(0xFFF7F6F6),
-              ),
-              child: Column(
-                children: [
-                  // Tab bar
-                  TabBar(
-                    controller: _tabController,
-                    indicatorColor: const Color(0xFF2184FC),
-                    indicatorWeight: 3,
-                    labelColor: Colors.black,
-                    unselectedLabelColor: Colors.grey,
-                    labelStyle: const TextStyle(
-                      fontSize: 18,
-                      fontWeight: FontWeight.bold,
-                    ),
-                    unselectedLabelStyle: const TextStyle(
-                      fontSize: 16,
-                    ),
-                    tabs: const [
-                      Tab(text: "Report"),
-                      Tab(text: "Community"),
-                    ],
+            child: SingleChildScrollView(
+              // Wrap content in scrollable widget
+              child: Container(
+                decoration: const BoxDecoration(
+                  borderRadius: BorderRadius.only(
+                    topLeft: Radius.circular(40),
+                    topRight: Radius.circular(40),
                   ),
-
-                  // Tab bar views
-                  Expanded(
-                    child: TabBarView(
+                  color: Color(0xFFF7F6F6),
+                ),
+                child: Column(
+                  children: [
+                    // Tab bar
+                    TabBar(
                       controller: _tabController,
-                      children: [
-                        // Report Tab
-                        Padding(
-                          padding: const EdgeInsets.only(
-                              top: 25.0, left: 30, right: 30),
-                          child: Column(
-                            children: [
-                              const Text(
-                                "Help us keep the community safe by reporting any fraudulent messages.",
-                                style: TextStyle(
-                                  fontSize: 15,
-                                  color: Colors.black,
-                                ),
-                              ),
-                              const SizedBox(height: 20),
-                              // Text area with delete button
-                              Stack(
-                                clipBehavior: Clip.none,
-                                children: [
-                                  TextFormField(
-                                    controller: _messageController,
-                                    maxLines: 3,
-                                    decoration: InputDecoration(
-                                      hintText: 'Enter text here..',
-                                      hintStyle: const TextStyle(
-                                        fontSize: 15,
-                                        color:
-                                            Color.fromARGB(255, 137, 136, 136),
-                                      ),
-                                      border: OutlineInputBorder(
-                                          borderRadius:
-                                              BorderRadius.circular(8.0)),
-                                      fillColor: Colors.grey[200],
-                                      filled: true,
-                                      suffixIcon: IconButton(
-                                        onPressed: () {
-                                          // Handle file upload
-                                          _pickImage();
-                                        },
-                                        icon: Icon(Icons.attach_file,
-                                            size: 25,
-                                            color:
-                                                Colors.blue.withOpacity(0.65)),
-                                      ),
-                                    ),
-                                  ),
-                                  Positioned(
-                                    top: -10,
-                                    left: -10,
-                                    child: GestureDetector(
-                                      onTap: () {
-                                        _messageController
-                                            .clear(); // Clear text
-                                      },
-                                      child: Container(
-                                        width: 24,
-                                        height: 24,
-                                        decoration: const BoxDecoration(
-                                          shape: BoxShape.circle,
-                                          color: Colors.red,
-                                        ),
-                                        child: const Icon(
-                                          Icons.close,
-                                          color: Colors.white,
-                                          size: 16,
-                                        ),
-                                      ),
-                                    ),
-                                  ),
-                                ],
-                              ),
-                              const SizedBox(height: 20),
-
-                              if (_image != null)
-                                Stack(
-                                  clipBehavior: Clip.none,
-                                  children: [
-                                    ValueListenableBuilder<bool>(
-                                      valueListenable: isImageHovered,
-                                      builder: (context, hover, child) {
-                                        return MouseRegion(
-                                          onEnter: (_) =>
-                                              isImageHovered.value = true,
-                                          onExit: (_) =>
-                                              isImageHovered.value = false,
-                                          child: AnimatedContainer(
-                                            duration: const Duration(
-                                                milliseconds: 200),
-                                            height: hover ? 140 : 120,
-                                            width: hover ? 140 : 120,
-                                            decoration: BoxDecoration(
-                                              borderRadius:
-                                                  BorderRadius.circular(8.0),
-                                              border: Border.all(
-                                                  color: Colors.grey, width: 1),
-                                            ),
-                                            child: Image.file(
-                                              _image!,
-                                              fit: BoxFit.cover,
-                                            ),
-                                          ),
-                                        );
-                                      },
-                                    ),
-                                    Positioned(
-                                      top: -10,
-                                      left: -10,
-                                      child: GestureDetector(
-                                        onTap: _resetContent,
-                                        child: Container(
-                                          width: 24,
-                                          height: 24,
-                                          decoration: BoxDecoration(
-                                            shape: BoxShape.circle,
-                                            color: Colors.red,
-                                          ),
-                                          child: const Icon(
-                                            Icons.close,
-                                            color: Colors.white,
-                                            size: 16,
-                                          ),
-                                        ),
-                                      ),
-                                    ),
-                                  ],
-                                ),
-                              const SizedBox(height: 20),
-
-                              // Report Message button
-                              ElevatedButton(
-                                onPressed: () {
-                                  final content =
-                                      _messageController.text.trim();
-                                  if (content.isEmpty) {
-                                    _showMessage('Please enter a message.');
-                                    return;
-                                  }
-                                  reportMessage(content);
-                                  _messageController.clear();
-                                },
-                                style: ElevatedButton.styleFrom(
-                                  backgroundColor: const Color(0xFF2184FC),
-                                  padding: const EdgeInsets.symmetric(
-                                      horizontal: 32, vertical: 12),
-                                  shape: RoundedRectangleBorder(
-                                    borderRadius: BorderRadius.circular(8),
-                                  ),
-                                ),
-                                child: const Text(
-                                  "Report Message",
-                                  style: TextStyle(
-                                      fontSize: 16, color: Colors.white),
-                                ),
-                              ),
-                            ],
-                          ),
-                        ),
-
-                        // Community Tab
-                        StreamBuilder<List<Map<String, dynamic>>>(
-                          stream: getReportedMessages(),
-                          builder: (context, snapshot) {
-                            if (snapshot.connectionState ==
-                                ConnectionState.waiting) {
-                              return const Center(
-                                  child: CircularProgressIndicator());
-                            }
-
-                            if (snapshot.hasError) {
-                              return const Center(
-                                  child: Text('Error loading data.'));
-                            }
-
-                            final reportedMessages = snapshot.data ?? [];
-
-                            return ListView.builder(
-                              itemCount: reportedMessages.length,
-                              itemBuilder: (context, index) {
-                                final message = reportedMessages[index];
-                                return ListTile(
-                                  title: Text(message['content']),
-                                  subtitle: Text(
-                                      'Reported ${message['reportCount']} times'),
-                                );
-                              },
-                            );
-                          },
-                        ),
+                      indicatorColor: const Color(0xFF2184FC),
+                      indicatorWeight: 3,
+                      labelColor: Colors.black,
+                      unselectedLabelColor: Colors.grey,
+                      labelStyle: const TextStyle(
+                        fontSize: 18,
+                        fontWeight: FontWeight.bold,
+                      ),
+                      unselectedLabelStyle: const TextStyle(
+                        fontSize: 16,
+                      ),
+                      tabs: const [
+                        Tab(text: "Report"),
+                        Tab(text: "Community"),
                       ],
                     ),
-                  ),
-                ],
+
+                    // Tab bar views
+                    SizedBox(
+                        height: MediaQuery.of(context).size.height -
+                            200, // Adjust the height
+                        child: TabBarView(
+                          controller: _tabController,
+                          children: [
+                            // Report Tab
+                            Padding(
+                              padding: const EdgeInsets.only(
+                                  top: 25.0, left: 30, right: 30),
+                              child: Expanded(
+                                // Wrap the Column inside Expanded to prevent overflow
+                                child: SingleChildScrollView(
+                                  // Allow scrolling inside the Report tab
+                                  child: Column(
+                                    children: [
+                                      const Text(
+                                        "Help us keep the community safe by reporting any fraudulent messages.",
+                                        style: TextStyle(
+                                          fontSize: 15,
+                                          color: Colors.black,
+                                        ),
+                                      ),
+                                      const SizedBox(height: 20),
+                                      // Text area with delete button
+                                      Stack(
+                                        clipBehavior: Clip.none,
+                                        children: [
+                                          TextFormField(
+                                            controller: _messageController,
+                                            maxLines: 3,
+                                            decoration: InputDecoration(
+                                              hintText: 'Enter text here..',
+                                              hintStyle: const TextStyle(
+                                                fontSize: 15,
+                                                color: Color.fromARGB(
+                                                    255, 137, 136, 136),
+                                              ),
+                                              border: OutlineInputBorder(
+                                                  borderRadius:
+                                                      BorderRadius.circular(
+                                                          8.0)),
+                                              fillColor: Colors.grey[200],
+                                              filled: true,
+                                              suffixIcon: IconButton(
+                                                onPressed: () {
+                                                  // Handle file upload
+                                                  _pickImage();
+                                                },
+                                                icon: Icon(Icons.attach_file,
+                                                    size: 25,
+                                                    color: Colors.blue
+                                                        .withOpacity(0.65)),
+                                              ),
+                                            ),
+                                          ),
+                                          Positioned(
+                                            top: -10,
+                                            left: -10,
+                                            child: GestureDetector(
+                                              onTap: () {
+                                                _messageController
+                                                    .clear(); // Clear text
+                                              },
+                                              child: Container(
+                                                width: 24,
+                                                height: 24,
+                                                decoration: const BoxDecoration(
+                                                  shape: BoxShape.circle,
+                                                  color: Colors.red,
+                                                ),
+                                                child: const Icon(
+                                                  Icons.close,
+                                                  color: Colors.white,
+                                                  size: 16,
+                                                ),
+                                              ),
+                                            ),
+                                          ),
+                                        ],
+                                      ),
+                                      const SizedBox(height: 20),
+                                      if (_image != null)
+                                        Stack(
+                                          clipBehavior: Clip.none,
+                                          children: [
+                                            ValueListenableBuilder<bool>(
+                                              valueListenable: isImageHovered,
+                                              builder: (context, hover, child) {
+                                                return MouseRegion(
+                                                  onEnter: (_) => isImageHovered
+                                                      .value = true,
+                                                  onExit: (_) => isImageHovered
+                                                      .value = false,
+                                                  child: AnimatedContainer(
+                                                    duration: const Duration(
+                                                        milliseconds: 200),
+                                                    height: hover ? 140 : 120,
+                                                    width: hover ? 140 : 120,
+                                                    decoration: BoxDecoration(
+                                                      borderRadius:
+                                                          BorderRadius.circular(
+                                                              8.0),
+                                                      border: Border.all(
+                                                          color: Colors.grey,
+                                                          width: 1),
+                                                    ),
+                                                    child: Image.file(
+                                                      _image!,
+                                                      fit: BoxFit.cover,
+                                                    ),
+                                                  ),
+                                                );
+                                              },
+                                            ),
+                                            Positioned(
+                                              top: -10,
+                                              left: -10,
+                                              child: GestureDetector(
+                                                onTap: _resetContent,
+                                                child: Container(
+                                                  width: 24,
+                                                  height: 24,
+                                                  decoration: BoxDecoration(
+                                                    shape: BoxShape.circle,
+                                                    color: Colors.red,
+                                                  ),
+                                                  child: const Icon(
+                                                    Icons.close,
+                                                    color: Colors.white,
+                                                    size: 16,
+                                                  ),
+                                                ),
+                                              ),
+                                            ),
+                                          ],
+                                        ),
+                                      const SizedBox(height: 20),
+
+                                      // Report Message button
+                                      ElevatedButton(
+                                        onPressed: () {
+                                          final content =
+                                              _messageController.text.trim();
+                                          if (content.isEmpty) {
+                                            _showMessage(
+                                                'Please enter a message.');
+                                            return;
+                                          }
+                                          reportMessage(content);
+                                          _resetContent(); // Reset both the text field and the image
+                                        },
+                                        style: ElevatedButton.styleFrom(
+                                          backgroundColor:
+                                              const Color(0xFF2184FC),
+                                          padding: const EdgeInsets.symmetric(
+                                              horizontal: 32, vertical: 12),
+                                          shape: RoundedRectangleBorder(
+                                            borderRadius:
+                                                BorderRadius.circular(8),
+                                          ),
+                                        ),
+                                        child: const Text(
+                                          "Report Message",
+                                          style: TextStyle(
+                                              fontSize: 16,
+                                              color: Colors.white),
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                              ),
+                            ),
+
+                            // Community Tab
+                            StreamBuilder<List<Map<String, dynamic>>>(
+                              stream: getReportedMessages(),
+                              builder: (context, snapshot) {
+                                if (snapshot.connectionState ==
+                                    ConnectionState.waiting) {
+                                  return const Center(
+                                      child: CircularProgressIndicator());
+                                }
+
+                                if (snapshot.hasError) {
+                                  return const Center(
+                                      child: Text('Error loading data.'));
+                                }
+
+                                final reportedMessages = snapshot.data ?? [];
+
+                                if (reportedMessages.isEmpty) {
+                                  return const Center(
+                                    child: Text(
+                                      'No reported messages yet.',
+                                      style: TextStyle(
+                                          fontSize: 16, color: Colors.grey),
+                                    ),
+                                  );
+                                }
+
+                                return ListView.builder(
+                                  shrinkWrap:
+                                      true, // Ensures ListView only takes up as much space as needed
+                                  itemCount: reportedMessages.length,
+                                  itemBuilder: (context, index) {
+                                    final message = reportedMessages[index];
+
+                                    return Padding(
+                                      padding: const EdgeInsets.symmetric(
+                                          horizontal: 16.0, vertical: 8.0),
+                                      child: Container(
+                                        decoration: BoxDecoration(
+                                          color: Colors.white,
+                                          borderRadius:
+                                              BorderRadius.circular(12),
+                                          boxShadow: [
+                                            BoxShadow(
+                                              color:
+                                                  Colors.grey.withOpacity(0.2),
+                                              spreadRadius: 2,
+                                              blurRadius: 5,
+                                            ),
+                                          ],
+                                        ),
+                                        child: Padding(
+                                          padding: const EdgeInsets.all(16.0),
+                                          child: Column(
+                                            crossAxisAlignment:
+                                                CrossAxisAlignment.start,
+                                            children: [
+                                              // User(s) who reported the message
+                                              Row(
+                                                children: [
+                                                  const Icon(
+                                                    Icons.person,
+                                                    size: 20,
+                                                    color: Colors.grey,
+                                                  ),
+                                                  const SizedBox(width: 8),
+                                                  Expanded(
+                                                    child: Text(
+                                                      'Reported by: ${message['reportedUsers']?.join(', ') ?? 'Unknown'}',
+                                                      style: const TextStyle(
+                                                        fontSize: 14,
+                                                        color: Colors.grey,
+                                                      ),
+                                                      overflow:
+                                                          TextOverflow.ellipsis,
+                                                    ),
+                                                  ),
+                                                ],
+                                              ),
+                                              const SizedBox(height: 8),
+
+                                              Text(
+                                                message['content'],
+                                                style: const TextStyle(
+                                                  fontSize: 16,
+                                                  fontWeight: FontWeight.bold,
+                                                  color: Colors.black,
+                                                ),
+                                              ),
+
+                                              const SizedBox(height: 8),
+
+                                              // Report count and icon
+                                              Row(
+                                                mainAxisAlignment:
+                                                    MainAxisAlignment.end,
+                                                children: [
+                                                  const Icon(
+                                                    Icons.report_gmailerrorred,
+                                                    color: Color(0xFF2184FC),
+                                                    size: 20,
+                                                  ),
+                                                  const SizedBox(width: 4),
+                                                  Text(
+                                                    '${message['reportCount']} reports',
+                                                    style: const TextStyle(
+                                                      fontSize: 14,
+                                                      color: Colors.black,
+                                                    ),
+                                                  ),
+                                                ],
+                                              ),
+                                            ],
+                                          ),
+                                        ),
+                                      ),
+                                    );
+                                  },
+                                );
+                              },
+                            )
+                          ],
+                        )),
+                  ],
+                ),
               ),
             ),
           ),
