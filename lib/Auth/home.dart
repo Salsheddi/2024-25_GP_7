@@ -3,9 +3,10 @@ import 'package:flutter/material.dart';
 import 'package:flutter/material.dart';
 import 'package:curved_navigation_bar/curved_navigation_bar.dart';
 import 'package:mirsad/Auth/Profile.dart';
+import 'package:mirsad/Auth/RecentScams.dart';
 import 'package:mirsad/Auth/chatbot.dart';
 import 'package:mirsad/Auth/classification.dart';
-import 'package:mirsad/Auth/reportScam.dart';
+import 'package:mirsad/Auth/RecentScams.dart';
 
 class Home extends StatefulWidget {
   const Home({super.key});
@@ -171,17 +172,17 @@ class HomeContent extends StatelessWidget {
 
             const SizedBox(height: 16),
 
-            // Two Cards: Report a scam and Fraud Insights
+            // Two Cards: Recent Scams and Fraud Insights
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceEvenly,
               children: [
-                // Report a Scam Card
+                // Recent Scams Card
                 InkWell(
                   onTap: () {
                     Navigator.push(
                       context,
                       MaterialPageRoute(
-                          builder: (context) => const ReportScam()),
+                          builder: (context) => const RecentScams()),
                     );
                   },
                   child: Container(
@@ -203,13 +204,13 @@ class HomeContent extends StatelessWidget {
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         const Icon(
-                          Icons.report_outlined,
+                          Icons.report_gmailerrorred,
                           size: 36,
                           color: Color(0xFF2184FC),
                         ),
                         const SizedBox(height: 12),
                         const Text(
-                          'Report a scam',
+                          'Recent Scams',
                           style: TextStyle(
                             fontSize: 16,
                             fontWeight: FontWeight.bold,
@@ -217,7 +218,7 @@ class HomeContent extends StatelessWidget {
                         ),
                         const SizedBox(height: 8),
                         const Text(
-                          'Your Input Helps Us Fight Fraud',
+                          'Discover and Avoid Latest Scams',
                           style: TextStyle(
                             fontSize: 13,
                             color: Colors.grey,

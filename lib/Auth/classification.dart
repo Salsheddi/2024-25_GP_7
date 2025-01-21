@@ -157,7 +157,6 @@ class _ClassificationState extends State<Classification> {
                       Likelihood: $likelihood
                     """;
                   });
-                  
                 } catch (e) {
                   // If not JSON, display the data part as-is
                   setState(() {
@@ -273,8 +272,10 @@ class ClassificationContent extends StatelessWidget {
   Widget build(BuildContext context) {
     // Notifiers for hover effects
     ValueNotifier<bool> isImageHovered = ValueNotifier(false);
-    ValueNotifier<bool> isButtonHovered = ValueNotifier(false);
-    ValueNotifier<bool> isButtonPressed = ValueNotifier(false);
+    ValueNotifier<bool> isCheckButtonHovered = ValueNotifier(false);
+    ValueNotifier<bool> isCheckButtonPressed = ValueNotifier(false);
+    ValueNotifier<bool> isReportButtonHovered = ValueNotifier(false);
+    ValueNotifier<bool> isReportButtonPressed = ValueNotifier(false);
 
     return Scaffold(
       backgroundColor: const Color(0xFFF7F6F6),
@@ -450,52 +451,133 @@ class ClassificationContent extends StatelessWidget {
                               ],
                             ),
                           const SizedBox(height: 16),
-                          ValueListenableBuilder<bool>(
-                            valueListenable: isButtonHovered,
-                            builder: (context, hover, child) {
-                              return GestureDetector(
-                                onTapDown: (_) => isButtonPressed.value = true,
-                                onTapUp: (_) => isButtonPressed.value = false,
-                                onTapCancel: () =>
-                                    isButtonPressed.value = false,
-                                onTap: () async {
-                                  await onCheckMessage();
-                                },
-                                child: MouseRegion(
-                                  onEnter: (_) => isButtonHovered.value = true,
-                                  onExit: (_) => isButtonHovered.value = false,
-                                  child: ValueListenableBuilder<bool>(
-                                    valueListenable: isButtonPressed,
-                                    builder: (context, pressed, child) {
-                                      return AnimatedContainer(
-                                        duration:
-                                            const Duration(milliseconds: 200),
-                                        padding: const EdgeInsets.symmetric(
-                                            horizontal: 24, vertical: 12),
-                                        decoration: BoxDecoration(
-                                          color: pressed
-                                              ? Color.fromARGB(255, 28, 73, 134)
-                                              : hover
-                                                  ? Color.fromARGB(
-                                                          255, 165, 203, 248)
-                                                      .withOpacity(0.85)
-                                                  : const Color(0xFF2184FC)
-                                                      .withOpacity(0.65),
-                                          borderRadius:
-                                              BorderRadius.circular(8.0),
+                          Row(
+                            mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                            children: [
+                              Expanded(
+                                child: ValueListenableBuilder<bool>(
+                                  valueListenable: isCheckButtonHovered,
+                                  builder: (context, hover, child) {
+                                    return GestureDetector(
+                                      onTapDown: (_) =>
+                                          isCheckButtonPressed.value = true,
+                                      onTapUp: (_) =>
+                                          isCheckButtonPressed.value = false,
+                                      onTapCancel: () =>
+                                          isCheckButtonPressed.value = false,
+                                      onTap: () async {
+                                        await onCheckMessage();
+                                      },
+                                      child: MouseRegion(
+                                        onEnter: (_) =>
+                                            isCheckButtonHovered.value = true,
+                                        onExit: (_) =>
+                                            isCheckButtonHovered.value = false,
+                                        child: ValueListenableBuilder<bool>(
+                                          valueListenable: isCheckButtonPressed,
+                                          builder: (context, pressed, child) {
+                                            return AnimatedContainer(
+                                              duration: const Duration(
+                                                  milliseconds: 200),
+                                              padding:
+                                                  const EdgeInsets.symmetric(
+                                                      vertical: 12),
+                                              alignment: Alignment.center,
+                                              decoration: BoxDecoration(
+                                                color: pressed
+                                                    ? const Color.fromARGB(
+                                                        255, 28, 73, 134)
+                                                    : hover
+                                                        ? const Color.fromARGB(
+                                                                255,
+                                                                165,
+                                                                203,
+                                                                248)
+                                                            .withOpacity(0.85)
+                                                        : const Color(
+                                                                0xFF2184FC)
+                                                            .withOpacity(0.65),
+                                                borderRadius:
+                                                    BorderRadius.circular(8.0),
+                                              ),
+                                              child: const Text(
+                                                'Check Message',
+                                                style: TextStyle(
+                                                    fontSize: 16,
+                                                    color: Colors.white),
+                                              ),
+                                            );
+                                          },
                                         ),
-                                        child: const Text(
-                                          'Check Message',
-                                          style: TextStyle(
-                                              fontSize: 16,
-                                              color: Colors.white),
-                                        ),
-                                      );
-                                    },
-                                  ),
+                                      ),
+                                    );
+                                  },
                                 ),
-                              );
-                            },
+                              ),
+                              const SizedBox(
+                                  width: 8), // Spacing between buttons
+                              Expanded(
+                                child: ValueListenableBuilder<bool>(
+                                  valueListenable: isReportButtonHovered,
+                                  builder: (context, hover, child) {
+                                    return GestureDetector(
+                                      onTapDown: (_) =>
+                                          isReportButtonPressed.value = true,
+                                      onTapUp: (_) =>
+                                          isReportButtonPressed.value = false,
+                                      onTapCancel: () =>
+                                          isReportButtonPressed.value = false,
+                                      onTap: () {
+                                        // Logic for reporting the message
+                                      },
+                                      child: MouseRegion(
+                                        onEnter: (_) =>
+                                            isReportButtonHovered.value = true,
+                                        onExit: (_) =>
+                                            isReportButtonHovered.value = false,
+                                        child: ValueListenableBuilder<bool>(
+                                          valueListenable:
+                                              isReportButtonPressed,
+                                          builder: (context, pressed, child) {
+                                            return AnimatedContainer(
+                                              duration: const Duration(
+                                                  milliseconds: 200),
+                                              padding:
+                                                  const EdgeInsets.symmetric(
+                                                      vertical: 12),
+                                              alignment: Alignment.center,
+                                              decoration: BoxDecoration(
+                                                color: pressed
+                                                    ? const Color.fromARGB(
+                                                        255, 134, 28, 28)
+                                                    : hover
+                                                        ? const Color.fromARGB(
+                                                                255,
+                                                                248,
+                                                                165,
+                                                                165)
+                                                            .withOpacity(0.85)
+                                                        : const Color.fromARGB(
+                                                                255, 255, 0, 0)
+                                                            .withOpacity(0.65),
+                                                borderRadius:
+                                                    BorderRadius.circular(8.0),
+                                              ),
+                                              child: const Text(
+                                                'Report Message',
+                                                style: TextStyle(
+                                                    fontSize: 16,
+                                                    color: Colors.white),
+                                              ),
+                                            );
+                                          },
+                                        ),
+                                      ),
+                                    );
+                                  },
+                                ),
+                              ),
+                            ],
                           ),
                           const SizedBox(height: 16),
                           if (result != null)
