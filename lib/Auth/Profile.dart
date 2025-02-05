@@ -286,6 +286,46 @@ class _ProfileState extends State<Profile> {
     }
   }
 
+/* Future<void> deleteRelatedMessagesAndSummaries(String userId) async {
+  // Delete reported messages related to the user
+  await FirebaseFirestore.instance
+      .collection('reportedMessages')
+      .where('userId', isEqualTo: userId)
+      .get()
+      .then((snapshot) async {
+        for (var doc in snapshot.docs) {
+          // Delete the message document
+          String messageId = doc.id;
+          await doc.reference.delete();
+
+          // Check and update the message summary
+          DocumentReference summaryRef =
+              FirebaseFirestore.instance.collection('reportedMessagesSummary').doc(messageId);
+          await summaryRef.get().then((summaryDoc) async {
+            if (summaryDoc.exists) {
+              // Cast the document data to Map<String, dynamic> directly
+              Map<String, dynamic> data = summaryDoc.data() as Map<String, dynamic>;
+
+              // Get the current report count
+              int reportCount = data['reportCount'] ?? 0;
+
+              // If reportCount is greater than 1, decrement it
+              if (reportCount > 1) {
+                await summaryRef.update({'reportCount': reportCount - 1});
+              }
+              // If the report count is 1, delete the summary after decrementing to 0
+              else if (reportCount == 1) {
+                await summaryRef.delete();
+              }
+            }
+          });
+        }
+      });
+
+  // Add more related collections as needed (e.g., comments, reactions, etc.)
+}*/ 
+
+
   Future<String?> _showPasswordDialog(BuildContext context) async {
     String? password;
     final TextEditingController passwordController = TextEditingController();
