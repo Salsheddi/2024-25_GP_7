@@ -107,48 +107,43 @@ class _ClassificationState extends State<Classification> {
         .where('userId', isEqualTo: userId)
         .where('message', isEqualTo: message)
         .where('type', isEqualTo: 'detection')
-        .orderBy('timestamp', descending: true)
+        .orderBy('timestamp', descending: true) // Ensure the query orders by timestamp
         .limit(1)
         .get();
 
     if (query.docs.isEmpty) {
       print("No previous detections found.");
-      return true;
+      return true;  // Allow detection if no previous record exists
     }
 
     Timestamp lastTimestamp = query.docs.first.get('timestamp');
     print("Last detection timestamp: ${lastTimestamp.toDate()}");
 
-    return DateTime.now()
-            .difference(lastTimestamp.toDate())
-            .inHours >=
-        24;
+    // Check if the last detection was done more than 24 hours ago
+    return DateTime.now().difference(lastTimestamp.toDate()).inHours >= 24;
   } catch (e) {
     print("Error in canDetectMessage: $e");
     return true;  // In case of error, allow detection
   }
 }
-
-
-  /// Retrieves the most recent detection for the [message] by [userId].
-  Future<DocumentSnapshot?> getLatestDetection(
-      String userId, String message) async {
-    try {
-      QuerySnapshot query = await FirebaseFirestore.instance
-          .collection('messages')
-          .where('userId', isEqualTo: userId)
-          .where('message', isEqualTo: message)
-          .where('type', isEqualTo: 'detection')
-          .orderBy('timestamp', descending: true)
-          .limit(1)
-          .get();
-
-      if (query.docs.isEmpty) return null;
-      return query.docs.first;
-    } catch (e) {
-      print("Error retrieving latest detection: $e");
-      return null;
-    }
+  void _showDetectionLimitDialog() {
+    showDialog(
+      context: context,
+      builder: (BuildContext context) {
+        return AlertDialog(
+          title: const Text('Detection Limit Reached'),
+          content: const Text('You can only detect this message once every 24 hours.'),
+          actions: [
+            TextButton(
+              onPressed: () {
+                Navigator.pop(context);  // Close the dialog
+              },
+              child: const Text('OK'),
+            ),
+          ],
+        );
+      },
+    );
   }
 
   /// Saves the detection record in Firestore with an ID starting with "DE".
@@ -161,6 +156,12 @@ class _ClassificationState extends State<Classification> {
   }) async {
     try {
       String id = 'DE${DateTime.now().millisecondsSinceEpoch}';
+
+      // Add print statements to verify the values
+      print("Saving detection with ID: $id");
+      print("Message: $message");
+      print("Label: $label, Percentage: $percentage, Justification: $justification");
+
       await FirebaseFirestore.instance.collection('messages').doc(id).set({
         'id': id,
         'userId': userId,
@@ -171,8 +172,39 @@ class _ClassificationState extends State<Classification> {
         'type': 'detection',
         'timestamp': Timestamp.now(),
       });
+
+      print("Detection saved to Firestore successfully!");
     } catch (e) {
       print("Error saving detection: $e");
+    }
+  }
+
+  // Function to handle saving detection and updating detection summary
+  Future<void> processDetection({
+    required String userId,
+    required String message,
+    required String classification,
+    required String justification,
+    required String likelihood,
+  }) async {
+    try {
+      // Ensure data is valid
+      print("Processing detection for message: $message");
+
+      // Save the detection result to Firestore only if the message has not been saved within 24 hours
+      await saveDetection(
+        userId: userId,
+        message: message,
+        label: classification,
+        percentage: likelihood,
+        justification: justification,
+      );
+
+      // Update detection summary for this user and message
+      await updateDetectionSummary(message, userId);
+      print("Detection processed and saved successfully!");
+    } catch (e) {
+      print("Error processing detection: $e");
     }
   }
 
@@ -211,30 +243,55 @@ class _ClassificationState extends State<Classification> {
 
   /// Checks if the user has reported this [message] in the last 24 hours.
   Future<bool> canReportMessage(String userId, String message) async {
-  try {
-    QuerySnapshot query = await FirebaseFirestore.instance
-        .collection('messages')
-        .where('userId', isEqualTo: userId)
-        .where('message', isEqualTo: message)
-        .where('type', isEqualTo: 'report')
-        .orderBy('timestamp', descending: true)
-        .limit(1)
-        .get();
+    try {
+      QuerySnapshot query = await FirebaseFirestore.instance
+          .collection('messages')
+          .where('userId', isEqualTo: userId)
+          .where('message', isEqualTo: message)
+          .where('type', isEqualTo: 'report')
+          .orderBy('timestamp', descending: true)
+          .limit(1)
+          .get();
 
-    if (query.docs.isEmpty) return true;
+      if (query.docs.isEmpty) return true;
 
-    Timestamp lastTimestamp = query.docs.first.get('timestamp');
-    print("Last report timestamp: ${lastTimestamp.toDate()}");
+      Timestamp lastTimestamp = query.docs.first.get('timestamp');
+      print("Last report timestamp: ${lastTimestamp.toDate()}");
 
-    return DateTime.now()
-            .difference(lastTimestamp.toDate())
-            .inHours >=
-        24;
-  } catch (e) {
-    print("Error in canReportMessage: $e");
-    return true;  // In case of error, allow reporting
+      // Check if the last report is within the last 24 hours
+      bool isWithin24Hours = DateTime.now().difference(lastTimestamp.toDate()).inHours < 24;
+
+      if (isWithin24Hours) {
+        // Show a dialog if the report was within 24 hours
+        _showReportLimitDialog();
+      }
+
+      return !isWithin24Hours;  // Return false if within 24 hours
+    } catch (e) {
+      print("Error in canReportMessage: $e");
+      return true;  // In case of error, allow reporting
+    }
   }
-}
+
+  void _showReportLimitDialog() {
+    showDialog(
+      context: context,
+      builder: (BuildContext context) {
+        return AlertDialog(
+          title: const Text('Report Limit Reached'),
+          content: const Text('You can only report this message once every 24 hours.'),
+          actions: [
+            TextButton(
+              onPressed: () {
+                Navigator.pop(context);  // Close the dialog
+              },
+              child: const Text('OK'),
+            ),
+          ],
+        );
+      },
+    );
+  }
 
   /// Saves the report record in Firestore with an ID starting with "RE".
   Future<void> saveReport({
@@ -256,6 +313,7 @@ class _ClassificationState extends State<Classification> {
       print("Error saving report: $e");
     }
   }
+
   Future<void> _reportMessage() async {
     String userId = FirebaseAuth.instance.currentUser?.uid ?? 'anonymous';
     String message = _textController.text;
@@ -264,7 +322,7 @@ class _ClassificationState extends State<Classification> {
     bool allowed = await canReportMessage(userId, message);
     if (!allowed) {
       ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('You can only report this message once every 24 hours.')));
+          const SnackBar(content: Text('Report Rejected.')));
 
       return;
     }
@@ -313,136 +371,153 @@ class _ClassificationState extends State<Classification> {
 
   // -------------------------------
   // Updated _checkMessage Function
-  // -------------------------------
-  Future<void> _checkMessage() async {
-  String userId = FirebaseAuth.instance.currentUser?.uid ?? 'anonymous';
-  String message = _textController.text;
-  if (message.isEmpty) return;
+  // ------------------------------- 
+  /// Retrieves the most recent detection for the [message] by [userId].
+Future<DocumentSnapshot?> getLatestDetection(String userId, String message) async {
+  try {
+    QuerySnapshot query = await FirebaseFirestore.instance
+        .collection('messages')
+        .where('userId', isEqualTo: userId)
+        .where('message', isEqualTo: message)
+        .where('type', isEqualTo: 'detection')
+        .orderBy('timestamp', descending: true)
+        .limit(1)
+        .get();
 
-  bool allowedToDetect = await canDetectMessage(userId, message);
-  if (!allowedToDetect) {
-    // If detected within the last 24 hours, fetch and display the previous detection.
-    DocumentSnapshot? doc = await getLatestDetection(userId, message);
-    if (doc != null) {
-      String label = doc.get('label');
-      String percentage = doc.get('percentage');
-      String justification = doc.get('justification');
-      showDialog(
-          context: context,
-          builder: (BuildContext context) {
-            return AlertDialog(
-              title: const Text('Already Detected'),
-              content: Text(
-                  'You already processed this message in the last 24 hours.\n\nClassification: $label\nJustification: $justification\nLikelihood: $percentage'),
-              actions: [
-                TextButton(
-                    onPressed: () => Navigator.pop(context),
-                    child: const Text('OK'))
-              ],
-            );
-          });
-      setState(() {
-        _result = """
+    if (query.docs.isEmpty) return null;
+    return query.docs.first;
+  } catch (e) {
+    print("Error retrieving latest detection: $e");
+    return null;
+  }
+}
+  Future<void> _checkMessage() async {
+    String userId = FirebaseAuth.instance.currentUser?.uid ?? 'anonymous';
+    String message = _textController.text;
+    if (message.isEmpty) return;
+
+    bool allowedToDetect = await canDetectMessage(userId, message);
+
+    // If the message has been detected recently (within 24 hours), skip saving, but still process the model.
+    if (!allowedToDetect) {
+      // Skip saving and just return, but continue to show the results.
+      DocumentSnapshot? doc = await getLatestDetection(userId, message);
+      if (doc != null) {
+        String label = doc.get('label');
+        String percentage = doc.get('percentage');
+        String justification = doc.get('justification');
+        showDialog(
+            context: context,
+            builder: (BuildContext context) {
+              return AlertDialog(
+                title: const Text('Already Detected'),
+                content: Text(
+                    'You already processed this message in the last 24 hours.\n\nClassification: $label\nJustification: $justification\nLikelihood: $percentage'),
+                actions: [
+                  TextButton(
+                      onPressed: () => Navigator.pop(context),
+                      child: const Text('OK'))
+                ],
+              );
+            });
+        setState(() {
+          _result = """
 **Label:** $label
 **Justification:** $justification
 **Likelihood:** $percentage
 """;
-      });
-      return;
+        });
+        return;
+      }
     }
-  }
 
-  // Otherwise, call the API.
-  String baseUrl =
-      "https://shdnalssheddi-mirsad-classifier.hf.space/gradio_api/call/predict";
-  try {
-    Map<String, dynamic> payload = {
-      "data": [message]
-    };
+    String baseUrl = "https://shdnalssheddi-mirsad-classifier.hf.space/gradio_api/call/predict";
+    try {
+      Map<String, dynamic> payload = {
+        "data": [message]
+      };
 
-    final postResponse = await http.post(
-      Uri.parse(baseUrl),
-      headers: {"Content-Type": "application/json"},
-      body: json.encode(payload),
-    );
+      final postResponse = await http.post(
+        Uri.parse(baseUrl),
+        headers: {"Content-Type": "application/json"},
+        body: json.encode(payload),
+      );
 
-    if (postResponse.statusCode == 200) {
-      final postResponseBody = json.decode(postResponse.body);
+      if (postResponse.statusCode == 200) {
+        final postResponseBody = json.decode(postResponse.body);
 
-      if (postResponseBody['event_id'] != null) {
-        String eventId = postResponseBody['event_id'];
-        String resultUrl = "$baseUrl/$eventId";
+        if (postResponseBody['event_id'] != null) {
+          String eventId = postResponseBody['event_id'];
+          String resultUrl = "$baseUrl/$eventId";
 
-        final getResponse = await http.get(Uri.parse(resultUrl));
+          final getResponse = await http.get(Uri.parse(resultUrl));
 
-        if (getResponse.statusCode == 200) {
-          String responseBody = getResponse.body;
-          if (responseBody.startsWith("event:")) {
-            final dataIndex = responseBody.indexOf("data: ");
-            if (dataIndex != -1) {
-              String dataPart = responseBody.substring(dataIndex + 6).trim();
-              try {
-                final parsedData = json.decode(dataPart);
-                // Extract API result fields.
-                String classification = parsedData["data"][0][0];
-                String justification = parsedData["data"][0][1];
-                String likelihood = parsedData["data"][0][2];
+          if (getResponse.statusCode == 200) {
+            String responseBody = getResponse.body;
+            if (responseBody.startsWith("event:")) {
+              final dataIndex = responseBody.indexOf("data: ");
+              if (dataIndex != -1) {
+                String dataPart = responseBody.substring(dataIndex + 6).trim();
+                try {
+                  final parsedData = json.decode(dataPart);
+                  String classification = parsedData["data"][0][0];
+                  String justification = parsedData["data"][0][1];
+                  String likelihood = parsedData["data"][0][2];
 
-                setState(() {
-                  _result = """
+                  setState(() {
+                    _result = """
 **Label:** $classification
 **Justification:** $justification
 **Likelihood:** $likelihood
 """;
-                });
+                  });
 
-                // Save detection record.
-                await saveDetection(
-                  userId: userId,
-                  message: message,
-                  label: classification,
-                  percentage: likelihood,
-                  justification: justification,
-                );
-
-                // Update detection summary for this user/message.
-                await updateDetectionSummary(message, userId);
-              } catch (e) {
+                  // Save the detection only if it wasn't saved before in the last 24 hours.
+                  if (allowedToDetect) {
+                    await processDetection(
+                      userId: userId,
+                      message: message,
+                      classification: classification,
+                      justification: justification,
+                      likelihood: likelihood,
+                    );
+                  }
+                } catch (e) {
+                  setState(() {
+                    _result = dataPart;
+                  });
+                }
+              } else {
                 setState(() {
-                  _result = dataPart;
+                  _result = "Error: 'data' part not found in response.";
                 });
               }
             } else {
               setState(() {
-                _result = "Error: 'data' part not found in response.";
+                _result = "Error: Unexpected response format.";
               });
             }
           } else {
             setState(() {
-              _result = "Error: Unexpected response format.";
+              _result = "Error: GET request failed (${getResponse.statusCode}).";
             });
           }
         } else {
           setState(() {
-            _result = "Error: GET request failed (${getResponse.statusCode}).";
+            _result = "Error: 'event_id' not found in POST response.";
           });
         }
       } else {
         setState(() {
-          _result = "Error: 'event_id' not found in POST response.";
+          _result = "Error: POST request failed (${postResponse.statusCode}).";
         });
       }
-    } else {
+    } catch (e) {
       setState(() {
-        _result = "Error: POST request failed (${postResponse.statusCode}).";
+        _result = "Error: $e";
       });
     }
-  } catch (e) {
-    setState(() {
-      _result = "Error: $e";
-    });
   }
-}
 
   // -------------------------------
   // Build Method with Navigation
@@ -855,4 +930,3 @@ class ClassificationContent extends StatelessWidget {
   TextStyle _extractJustificationStyle(String result) => _getTextStyle(result);
   TextStyle _extractLikelihoodStyle(String result) => _getTextStyle(result);
 }
-
