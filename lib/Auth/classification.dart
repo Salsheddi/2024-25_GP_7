@@ -95,58 +95,52 @@ class _ClassificationState extends State<Classification> {
     }
   }
 
-  // -------------------------------
-  // Firestore Functions and Helpers
-  // -------------------------------
-
-  /// Checks if the user has detected this [message] in the last 24 hours.
+  /// Checks if the user has detected this message in the last 24 hours.
   Future<bool> canDetectMessage(String userId, String message) async {
-  try {
-    QuerySnapshot query = await FirebaseFirestore.instance
-        .collection('messages')
-        .where('userId', isEqualTo: userId)
-        .where('message', isEqualTo: message)
-        .where('type', isEqualTo: 'detection')
-        .orderBy('timestamp', descending: true) // Ensure the query orders by timestamp
-        .limit(1)
-        .get();
+    try {
+      QuerySnapshot query = await FirebaseFirestore.instance
+          .collection('messages')
+          .where('userId', isEqualTo: userId)
+          .where('message', isEqualTo: message)
+          .where('type', isEqualTo: 'detection')
+          .orderBy('timestamp', descending: true)
+          .limit(1)
+          .get();
 
-    if (query.docs.isEmpty) {
-      print("No previous detections found.");
-      return true;  // Allow detection if no previous record exists
+      if (query.docs.isEmpty) {
+        print("No previous detections found.");
+        return true; // Allow detection if no previous record exists.
+      }
+
+      Timestamp lastTimestamp = query.docs.first.get('timestamp');
+      print("Last detection timestamp: ${lastTimestamp.toDate()}");
+
+      // Allow detection only if more than 24 hours have passed.
+      return DateTime.now().difference(lastTimestamp.toDate()).inHours >= 24;
+    } catch (e) {
+      print("Error in canDetectMessage: $e");
+      return true; // On error, allow detection.
     }
+  } 
 
-    Timestamp lastTimestamp = query.docs.first.get('timestamp');
-    print("Last detection timestamp: ${lastTimestamp.toDate()}");
-
-    // Check if the last detection was done more than 24 hours ago
-    return DateTime.now().difference(lastTimestamp.toDate()).inHours >= 24;
-  } catch (e) {
-    print("Error in canDetectMessage: $e");
-    return true;  // In case of error, allow detection
-  }
-}
   void _showDetectionLimitDialog() {
     showDialog(
       context: context,
-      builder: (BuildContext context) {
-        return AlertDialog(
-          title: const Text('Detection Limit Reached'),
-          content: const Text('You can only detect this message once every 24 hours.'),
-          actions: [
-            TextButton(
-              onPressed: () {
-                Navigator.pop(context);  // Close the dialog
-              },
-              child: const Text('OK'),
-            ),
-          ],
-        );
-      },
+      builder: (context) => AlertDialog(
+        title: const Text('Detection Limit Reached'),
+        content:
+            const Text('You can only detect this message once every 24 hours.'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('OK'),
+          ),
+        ],
+      ),
     );
   }
 
-  /// Saves the detection record in Firestore with an ID starting with "DE".
+  // 2. Save the detection record in Firestore.
   Future<void> saveDetection({
     required String userId,
     required String message,
@@ -156,11 +150,10 @@ class _ClassificationState extends State<Classification> {
   }) async {
     try {
       String id = 'DE${DateTime.now().millisecondsSinceEpoch}';
-
-      // Add print statements to verify the values
       print("Saving detection with ID: $id");
       print("Message: $message");
-      print("Label: $label, Percentage: $percentage, Justification: $justification");
+      print(
+          "Label: $label, Percentage: $percentage, Justification: $justification");
 
       await FirebaseFirestore.instance.collection('messages').doc(id).set({
         'id': id,
@@ -179,7 +172,7 @@ class _ClassificationState extends State<Classification> {
     }
   }
 
-  // Function to handle saving detection and updating detection summary
+  // 3. Process detection by saving and updating the summary.
   Future<void> processDetection({
     required String userId,
     required String message,
@@ -188,10 +181,7 @@ class _ClassificationState extends State<Classification> {
     required String likelihood,
   }) async {
     try {
-      // Ensure data is valid
       print("Processing detection for message: $message");
-
-      // Save the detection result to Firestore only if the message has not been saved within 24 hours
       await saveDetection(
         userId: userId,
         message: message,
@@ -199,8 +189,6 @@ class _ClassificationState extends State<Classification> {
         percentage: likelihood,
         justification: justification,
       );
-
-      // Update detection summary for this user and message
       await updateDetectionSummary(message, userId);
       print("Detection processed and saved successfully!");
     } catch (e) {
@@ -208,11 +196,11 @@ class _ClassificationState extends State<Classification> {
     }
   }
 
-  /// Updates the per‑user detection summary in the "message_summary_detected" collection.
+  // 4. Update the per-user detection summary.
   Future<void> updateDetectionSummary(String message, String userId) async {
     try {
       String hash = generateHash(message);
-      String docId = '${hash}_$userId'; // Unique per message per user
+      String docId = '$hash';
       DocumentReference ref = FirebaseFirestore.instance
           .collection('detectedMessagesSummary')
           .doc(docId);
@@ -234,13 +222,33 @@ class _ClassificationState extends State<Classification> {
     }
   }
 
-  /// A simple hash function using Dart's hashCode.
+  // A simple hash function.
   String generateHash(String message) {
     return message.hashCode.toString();
   }
 
-  // --- Reporting Functions ---
+  // 5. Retrieve the most recent detection for the message.
+  Future<DocumentSnapshot?> getLatestDetection(
+      String userId, String message) async {
+    try {
+      QuerySnapshot query = await FirebaseFirestore.instance
+          .collection('messages')
+          .where('userId', isEqualTo: userId)
+          .where('message', isEqualTo: message)
+          .where('type', isEqualTo: 'detection')
+          .orderBy('timestamp', descending: true)
+          .limit(1)
+          .get();
 
+      if (query.docs.isEmpty) return null;
+      return query.docs.first;
+    } catch (e) {
+      print("Error retrieving latest detection: $e");
+      return null;
+    }
+  }
+
+  // --- Reporting Functions ---
   /// Checks if the user has reported this [message] in the last 24 hours.
   Future<bool> canReportMessage(String userId, String message) async {
     try {
@@ -259,17 +267,18 @@ class _ClassificationState extends State<Classification> {
       print("Last report timestamp: ${lastTimestamp.toDate()}");
 
       // Check if the last report is within the last 24 hours
-      bool isWithin24Hours = DateTime.now().difference(lastTimestamp.toDate()).inHours < 24;
+      bool isWithin24Hours =
+          DateTime.now().difference(lastTimestamp.toDate()).inHours < 24;
 
       if (isWithin24Hours) {
         // Show a dialog if the report was within 24 hours
         _showReportLimitDialog();
       }
 
-      return !isWithin24Hours;  // Return false if within 24 hours
+      return !isWithin24Hours; // Return false if within 24 hours
     } catch (e) {
       print("Error in canReportMessage: $e");
-      return true;  // In case of error, allow reporting
+      return true; // In case of error, allow reporting
     }
   }
 
@@ -283,7 +292,7 @@ class _ClassificationState extends State<Classification> {
           actions: [
             TextButton(
               onPressed: () {
-                Navigator.pop(context);  // Close the dialog
+                Navigator.pop(context); // Close the dialog
               },
               child: const Text('OK'),
             ),
@@ -321,9 +330,8 @@ class _ClassificationState extends State<Classification> {
 
     bool allowed = await canReportMessage(userId, message);
     if (!allowed) {
-      ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Report Rejected.')));
-
+      ScaffoldMessenger.of(context)
+          .showSnackBar(const SnackBar(content: Text('Report Rejected.')));
       return;
     }
 
@@ -332,7 +340,8 @@ class _ClassificationState extends State<Classification> {
     try {
       RegExp regExp = RegExp(r"\*\*Label:\*\*\s*(\w+)");
       Match? match = regExp.firstMatch(_result ?? '');
-      label = (match != null ? match.group(1)?.toLowerCase() : "unknown") ?? "unknown";
+      label = (match != null ? match.group(1)?.toLowerCase() : "unknown") ??
+          "unknown";
     } catch (e) {
       label = "unknown";
     }
@@ -343,7 +352,7 @@ class _ClassificationState extends State<Classification> {
         const SnackBar(content: Text('Message reported successfully.')));
   }
 
-  /// Updates the reported messages summary in the "message_summary_reported" collection.
+  /// Updates the reported messages summary.
   Future<void> updateReportSummary(String message, String userId) async {
     try {
       String hash = generateHash(message);
@@ -372,85 +381,65 @@ class _ClassificationState extends State<Classification> {
   // -------------------------------
   // Updated _checkMessage Function
   // ------------------------------- 
-  /// Retrieves the most recent detection for the [message] by [userId].
-Future<DocumentSnapshot?> getLatestDetection(String userId, String message) async {
-  try {
-    QuerySnapshot query = await FirebaseFirestore.instance
-        .collection('messages')
-        .where('userId', isEqualTo: userId)
-        .where('message', isEqualTo: message)
-        .where('type', isEqualTo: 'detection')
-        .orderBy('timestamp', descending: true)
-        .limit(1)
-        .get();
-
-    if (query.docs.isEmpty) return null;
-    return query.docs.first;
-  } catch (e) {
-    print("Error retrieving latest detection: $e");
-    return null;
-  }
-}
   Future<void> _checkMessage() async {
     String userId = FirebaseAuth.instance.currentUser?.uid ?? 'anonymous';
     String message = _textController.text;
     if (message.isEmpty) return;
 
+    // Check if the message can be detected.
     bool allowedToDetect = await canDetectMessage(userId, message);
 
-    // If the message has been detected recently (within 24 hours), skip saving, but still process the model.
+    // If detection already occurred within 24 hours, display its details.
     if (!allowedToDetect) {
-      // Skip saving and just return, but continue to show the results.
       DocumentSnapshot? doc = await getLatestDetection(userId, message);
       if (doc != null) {
         String label = doc.get('label');
         String percentage = doc.get('percentage');
         String justification = doc.get('justification');
         showDialog(
-            context: context,
-            builder: (BuildContext context) {
-              return AlertDialog(
-                title: const Text('Already Detected'),
-                content: Text(
-                    'You already processed this message in the last 24 hours.\n\nClassification: $label\nJustification: $justification\nLikelihood: $percentage'),
-                actions: [
-                  TextButton(
-                      onPressed: () => Navigator.pop(context),
-                      child: const Text('OK'))
-                ],
-              );
-            });
+          context: context,
+          builder: (context) => AlertDialog(
+            title: Text('Already Detected'),
+            content: Text(
+                'You already processed this message in the last 24 hours.\n\nClassification: $label\nJustification: $justification\nLikelihood: $percentage'),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(context),
+                child: Text('OK'),
+              )
+            ],
+          ),
+        );
         setState(() {
-          _result = """
-**Label:** $label
-**Justification:** $justification
-**Likelihood:** $percentage
-""";
+          _result =
+              "**Label:** $label\n**Justification:** $justification\n**Likelihood:** $percentage";
         });
         return;
       }
     }
 
-    String baseUrl = "https://shdnalssheddi-mirsad-classifier.hf.space/gradio_api/call/predict";
+    // --- Begin HTTP call to the classifier API ---
+    String baseUrl =
+        "https://shdnalssheddi-mirsad-classifier.hf.space/gradio_api/call/predict";
     try {
-      Map<String, dynamic> payload = {
-        "data": [message]
-      };
-
+      Map<String, dynamic> payload = {"data": [message]};
       final postResponse = await http.post(
         Uri.parse(baseUrl),
         headers: {"Content-Type": "application/json"},
         body: json.encode(payload),
       );
 
+      print("POST status: ${postResponse.statusCode}");
+      print("POST response body: ${postResponse.body}");
+
       if (postResponse.statusCode == 200) {
         final postResponseBody = json.decode(postResponse.body);
-
         if (postResponseBody['event_id'] != null) {
           String eventId = postResponseBody['event_id'];
           String resultUrl = "$baseUrl/$eventId";
-
           final getResponse = await http.get(Uri.parse(resultUrl));
+          print("GET status: ${getResponse.statusCode}");
+          print("GET response body: ${getResponse.body}");
 
           if (getResponse.statusCode == 200) {
             String responseBody = getResponse.body;
@@ -460,31 +449,60 @@ Future<DocumentSnapshot?> getLatestDetection(String userId, String message) asyn
                 String dataPart = responseBody.substring(dataIndex + 6).trim();
                 try {
                   final parsedData = json.decode(dataPart);
-                  String classification = parsedData["data"][0][0];
-                  String justification = parsedData["data"][0][1];
-                  String likelihood = parsedData["data"][0][2];
+                  if (parsedData is List && parsedData.isNotEmpty) {
+                    String resultString = parsedData[0];
+                    print("Parsed result string: $resultString");
+                    List<String> parts = resultString.split('\n');
+                    print("Parts: $parts");
 
-                  setState(() {
-                    _result = """
-**Label:** $classification
-**Justification:** $justification
-**Likelihood:** $likelihood
-""";
-                  });
+                    // Extract label, justification, and likelihood depending on the number of parts
+                    String classification = "";
+                    String justification = "";
+                    String likelihood = "";
 
-                  // Save the detection only if it wasn't saved before in the last 24 hours.
-                  if (allowedToDetect) {
-                    await processDetection(
-                      userId: userId,
-                      message: message,
-                      classification: classification,
-                      justification: justification,
-                      likelihood: likelihood,
-                    );
+                    if (parts.isNotEmpty) {
+                      classification =
+                          parts[0].replaceAll("**Label:**", "").trim();
+                    }
+                    if (parts.length >= 2) {
+                      justification =
+                          parts[1].replaceAll("**Justification:**", "").trim();
+                    }
+                    if (parts.length >= 3) {
+                      if (parts[2].contains("Spam Probability:")) {
+                        likelihood =
+                            parts[2].replaceAll("**Spam Probability:**", "").trim();
+                      } else if (parts[2].contains("Likelihood:")) {
+                        likelihood =
+                            parts[2].replaceAll("**Likelihood:**", "").trim();
+                      } else {
+                        likelihood = parts[2].trim();
+                      }
+                    }
+
+                    setState(() {
+                      _result =
+                          "**Label:** $classification\n**Justification:** $justification\n**Likelihood:** $likelihood";
+                    });
+
+                    // Save detection only if allowed.
+                    if (allowedToDetect) {
+                      await processDetection(
+                        userId: userId,
+                        message: message,
+                        classification: classification,
+                        justification: justification,
+                        likelihood: likelihood,
+                      );
+                    }
+                  } else {
+                    setState(() {
+                      _result = "Error: Parsed data is not a valid list.";
+                    });
                   }
                 } catch (e) {
                   setState(() {
-                    _result = dataPart;
+                    _result = "Error parsing response data: $e";
                   });
                 }
               } else {
@@ -494,7 +512,7 @@ Future<DocumentSnapshot?> getLatestDetection(String userId, String message) asyn
               }
             } else {
               setState(() {
-                _result = "Error: Unexpected response format.";
+                _result = "Error: Unexpected GET response format.";
               });
             }
           } else {
@@ -514,7 +532,7 @@ Future<DocumentSnapshot?> getLatestDetection(String userId, String message) asyn
       }
     } catch (e) {
       setState(() {
-        _result = "Error: $e";
+        _result = "Error during HTTP call: $e";
       });
     }
   }
@@ -626,7 +644,8 @@ class ClassificationContent extends StatelessWidget {
                   children: [
                     const SizedBox(width: 10),
                     IconButton(
-                      icon: const Icon(Icons.arrow_back, color: Colors.white),
+                      icon:
+                          const Icon(Icons.arrow_back, color: Colors.white),
                       onPressed: () {
                         Navigator.pop(context);
                       },
@@ -691,7 +710,8 @@ class ClassificationContent extends StatelessWidget {
                                     color: Colors.grey[600],
                                   ),
                                   border: OutlineInputBorder(
-                                      borderRadius: BorderRadius.circular(8.0)),
+                                      borderRadius:
+                                          BorderRadius.circular(8.0)),
                                   fillColor: Colors.grey[200],
                                   filled: true,
                                   suffixIcon: IconButton(
@@ -730,20 +750,24 @@ class ClassificationContent extends StatelessWidget {
                               clipBehavior: Clip.none,
                               children: [
                                 ValueListenableBuilder<bool>(
-
                                   valueListenable: isImageHovered,
                                   builder: (context, hover, child) {
                                     return MouseRegion(
-                                      onEnter: (_) => isImageHovered.value = true,
-                                      onExit: (_) => isImageHovered.value = false,
+                                      onEnter: (_) =>
+                                          isImageHovered.value = true,
+                                      onExit: (_) =>
+                                          isImageHovered.value = false,
                                       child: AnimatedContainer(
-                                        duration: const Duration(milliseconds: 200),
+                                        duration: const Duration(
+                                            milliseconds: 200),
                                         height: hover ? 140 : 120,
                                         width: hover ? 140 : 120,
                                         decoration: BoxDecoration(
-                                          borderRadius: BorderRadius.circular(8.0),
+                                          borderRadius:
+                                              BorderRadius.circular(8.0),
                                           border: Border.all(
-                                              color: Colors.grey, width: 1),
+                                              color: Colors.grey,
+                                              width: 1),
                                         ),
                                         child: Image.file(
                                           image!,
@@ -778,7 +802,8 @@ class ClassificationContent extends StatelessWidget {
                           const SizedBox(height: 16),
                           // Row for Check Message (and conditionally Report Message)
                           Row(
-                            mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                            mainAxisAlignment:
+                                MainAxisAlignment.spaceEvenly,
                             children: [
                               Expanded(
                                 child: ValueListenableBuilder<bool>(
@@ -796,27 +821,41 @@ class ClassificationContent extends StatelessWidget {
                                       },
                                       child: MouseRegion(
                                         onEnter: (_) =>
-                                            isCheckButtonHovered.value = true,
+                                            isCheckButtonHovered.value =
+                                                true,
                                         onExit: (_) =>
-                                            isCheckButtonHovered.value = false,
+                                            isCheckButtonHovered.value =
+                                                false,
                                         child: ValueListenableBuilder<bool>(
-                                          valueListenable: isCheckButtonPressed,
+                                          valueListenable:
+                                              isCheckButtonPressed,
                                           builder: (context, pressed, child) {
                                             return AnimatedContainer(
-                                              duration: const Duration(milliseconds: 200),
-                                              padding: const EdgeInsets.symmetric(vertical: 12),
+                                              duration: const Duration(
+                                                  milliseconds: 200),
+                                              padding:
+                                                  const EdgeInsets.symmetric(
+                                                      vertical: 12),
                                               alignment: Alignment.center,
                                               decoration: BoxDecoration(
                                                 color: pressed
-                                                    ? const Color.fromARGB(255, 28, 73, 134)
+                                                    ? const Color.fromARGB(
+                                                        255, 28, 73, 134)
                                                     : hover
-                                                        ? const Color.fromARGB(255, 165, 203, 248).withOpacity(0.85)
-                                                        : const Color(0xFF2184FC).withOpacity(0.65),
-                                                borderRadius: BorderRadius.circular(8.0),
+                                                        ? const Color.fromARGB(
+                                                                255, 165, 203, 248)
+                                                            .withOpacity(
+                                                                0.85)
+                                                        : const Color(0xFF2184FC)
+                                                            .withOpacity(0.65),
+                                                borderRadius:
+                                                    BorderRadius.circular(8.0),
                                               ),
                                               child: const Text(
                                                 'Check Message',
-                                                style: TextStyle(fontSize: 16, color: Colors.white),
+                                                style: TextStyle(
+                                                    fontSize: 16,
+                                                    color: Colors.white),
                                               ),
                                             );
                                           },
@@ -827,7 +866,8 @@ class ClassificationContent extends StatelessWidget {
                                 ),
                               ),
                               // Conditionally display Report Message button if result exists and label is SPAM.
-                              if (result != null && _extractLabel(result!) == "SPAM") ...[
+                              if (result != null &&
+                                  _extractLabel(result!) == "SPAM") ...[
                                 const SizedBox(width: 8),
                                 Expanded(
                                   child: ValueListenableBuilder<bool>(
@@ -847,27 +887,47 @@ class ClassificationContent extends StatelessWidget {
                                         },
                                         child: MouseRegion(
                                           onEnter: (_) =>
-                                              isReportButtonHovered.value = true,
+                                              isReportButtonHovered.value =
+                                                  true,
                                           onExit: (_) =>
-                                              isReportButtonHovered.value = false,
+                                              isReportButtonHovered.value =
+                                                  false,
                                           child: ValueListenableBuilder<bool>(
-                                            valueListenable: isReportButtonPressed,
+                                            valueListenable:
+                                                isReportButtonPressed,
                                             builder: (context, pressed, child) {
                                               return AnimatedContainer(
-                                                duration: const Duration(milliseconds: 200),
-                                                padding: const EdgeInsets.symmetric(vertical: 12),
+                                                duration: const Duration(
+                                                    milliseconds: 200),
+                                                padding:
+                                                    const EdgeInsets.symmetric(
+                                                        vertical: 12),
                                                 alignment: Alignment.center,
                                                 decoration: BoxDecoration(
                                                   color: pressed
-                                                      ? const Color.fromARGB(255, 134, 28, 28)
+                                                      ? const Color.fromARGB(
+                                                          255, 134, 28, 28)
                                                       : hover
-                                                          ? const Color.fromARGB(255, 248, 165, 165).withOpacity(0.85)
-                                                          : const Color.fromARGB(255, 255, 0, 0).withOpacity(0.65),
-                                                  borderRadius: BorderRadius.circular(8.0),
+                                                          ? const Color.fromARGB(
+                                                                  255,
+                                                                  248,
+                                                                  165,
+                                                                  165)
+                                                              .withOpacity(0.85)
+                                                          : const Color.fromARGB(
+                                                                  255,
+                                                                  255,
+                                                                  0,
+                                                                  0)
+                                                              .withOpacity(0.65),
+                                                  borderRadius:
+                                                      BorderRadius.circular(8.0),
                                                 ),
                                                 child: const Text(
                                                   'Report Message',
-                                                  style: TextStyle(fontSize: 16, color: Colors.white),
+                                                  style: TextStyle(
+                                                      fontSize: 16,
+                                                      color: Colors.white),
                                                 ),
                                               );
                                             },
@@ -881,12 +941,8 @@ class ClassificationContent extends StatelessWidget {
                             ],
                           ),
                           const SizedBox(height: 16),
-                          if (result != null)
-                            Text(
-                              _extractLabel(result!),
-                              textAlign: TextAlign.center,
-                              style: _extractLabelStyle(result!),
-                            ),
+                          // Modified result display: show label, justification, and likelihood.
+                          if (result != null) _buildResultDisplay(),
                         ],
                       ),
                     ),
@@ -929,4 +985,40 @@ class ClassificationContent extends StatelessWidget {
   TextStyle _extractLabelStyle(String result) => _getTextStyle(result);
   TextStyle _extractJustificationStyle(String result) => _getTextStyle(result);
   TextStyle _extractLikelihoodStyle(String result) => _getTextStyle(result);
+
+  /// Builds the display widget for the detection result.
+  Widget _buildResultDisplay() {
+  // Expected format of result:
+  // **Label:** Spam
+  // **Justification:** Contains spam-related keywords.
+  // **Likelihood:** 99.74%
+  final lines = result!.split('\n');
+  String labelText = lines.isNotEmpty
+      ? lines[0].replaceAll("**Label:**", "").trim()
+      : "N/A";
+  String justificationText = lines.length > 1
+      ? lines[1].replaceAll("**Justification:**", "").trim()
+      : "N/A";
+  String likelihoodText = lines.length > 2
+      ? lines[2]
+          .replaceAll("**Likelihood:**", "")
+          .replaceAll("**Spam Probability:**", "")
+          .trim()
+      : "N/A";
+
+  return Column(
+    crossAxisAlignment: CrossAxisAlignment.center,
+    children: [
+      Text("Label: $labelText", style: _extractLabelStyle(result!)),
+      const SizedBox(height: 8),
+      Text("Justification: $justificationText",
+          style: _extractJustificationStyle(result!),
+          textAlign: TextAlign.center), // <-- Centered text
+      const SizedBox(height: 8),
+      Text("Likelihood: $likelihoodText",
+          style: _extractLikelihoodStyle(result!),
+          textAlign: TextAlign.center),
+    ],
+  );
+}
 }
