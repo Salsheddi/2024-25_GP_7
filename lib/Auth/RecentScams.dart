@@ -22,46 +22,10 @@ class _ReportScamState extends State<RecentScams>
   final FirebaseFirestore firestore = FirebaseFirestore.instance;
   final FirebaseAuth auth = FirebaseAuth.instance;
 
+  String selectedSortOption = 'new_to_old'; // Default sorting option
+
   String generateContentHash(String content) {
     return content.hashCode.toString();
-  }
-
-  Future<void> reportMessage(String content) async {
-    final String userId =
-        auth.currentUser?.uid ?? ''; // Get the current user's ID
-    if (userId.isEmpty) {
-      _showMessage('User not logged in.');
-      return;
-    }
-
-    final String contentHash = generateContentHash(content);
-
-    // Check if the user has already reported this message
-    final QuerySnapshot existingReport = await firestore
-        .collection('reportedMessages')
-        .where('contentHash', isEqualTo: contentHash)
-        .where('userId', isEqualTo: userId)
-        .get();
-
-    if (existingReport.docs.isNotEmpty) {
-      _showAlreadyReportedDialog();
-      return;
-    }
-
-    final String messageId = "RE${DateTime.now().millisecondsSinceEpoch}";
-
-    // Add the new report
-    await firestore.collection('reportedMessages').doc(messageId).set({
-      'userId': userId,
-      'content': content,
-      'reportedAt': FieldValue.serverTimestamp(),
-      'contentHash': contentHash,
-    });
-
-    // Increment the report count
-    await incrementReportCount(contentHash, content);
-
-    _showMessage('Message reported successfully.');
   }
 
   Future<void> incrementReportCount(String contentHash, String content) async {
@@ -72,50 +36,27 @@ class _ReportScamState extends State<RecentScams>
       final snapshot = await transaction.get(summaryDoc);
 
       if (!snapshot.exists) {
-        // Initialize the count if it doesn't exist
         transaction.set(summaryDoc, {
-          'content': content,
-          'reportCount': 1,
+          'messageContent': content,
+          'counter': 1,
           'reportedUsers': [auth.currentUser?.uid],
+          'latestReportTime':
+              FieldValue.serverTimestamp(), // Store latest report time
         });
       } else {
         final data = snapshot.data() as Map<String, dynamic>;
         final List<dynamic> reportedUsers = data['reportedUsers'] ?? [];
 
         if (!reportedUsers.contains(auth.currentUser?.uid)) {
-          // Add the user to the reported users list if not already reported
           reportedUsers.add(auth.currentUser?.uid);
           transaction.update(summaryDoc, {
-            'reportCount': reportedUsers.length,
+            'counter': reportedUsers.length,
             'reportedUsers': reportedUsers,
+            'latestReportTime': FieldValue.serverTimestamp(), // Add this field
           });
         }
       }
     });
-  }
-
-  void _showAlreadyReportedDialog() {
-    showDialog(
-      context: context,
-      builder: (BuildContext context) {
-        return AlertDialog(
-          title: const Text('Message Already Reported'),
-          content: const Text(
-              'You have already reported this message. No duplicate reports are allowed.'),
-          actions: [
-            TextButton(
-              onPressed: () {
-                Navigator.of(context).pop(); // Close the dialog
-              },
-              child: const Text(
-                'Close',
-                style: TextStyle(color: Colors.blue),
-              ),
-            ),
-          ],
-        );
-      },
-    );
   }
 
   void _showMessage(String message) {
@@ -123,16 +64,118 @@ class _ReportScamState extends State<RecentScams>
         .showSnackBar(SnackBar(content: Text(message)));
   }
 
-  // Fetch all the reported messages from the Community tab
+  // Fetch reported messages and apply sorting
   Stream<List<Map<String, dynamic>>> getReportedMessages() {
     return firestore.collection('reportedMessagesSummary').snapshots().map(
       (snapshot) {
-        return snapshot.docs.map((doc) {
+        final messages = snapshot.docs.map((doc) {
+          final data = doc.data() as Map<String, dynamic>;
+          print(
+              "Fetched message: ${data['messageContent']} - Reports: ${data['counter']}");
+
+          final latestReportTime = data['latestReportTime'] as Timestamp?;
+// Assuming 'timestamp' is stored as a Timestamp
+
           return {
-            'content': doc['content'],
-            'reportCount': doc['reportCount'],
+            'messageContent': data['messageContent'] ?? 'Unknown Content',
+            'counter': data['counter'] ?? 0,
+            'latestReportTime': latestReportTime, // Add timestamp for sorting
           };
         }).toList();
+
+        print("Before sorting:");
+        for (var msg in messages) {
+          print(
+              "${msg['messageContent']} - Timestamp: ${msg['latestReportTime']}");
+        }
+
+        // Apply sorting based on the selected sort option
+        switch (selectedSortOption) {
+          case 'new_to_old':
+            messages.sort((a, b) {
+              final aTimestamp = a['latestReportTime'] as Timestamp?;
+              final bTimestamp = b['latestReportTime'] as Timestamp?;
+
+              // Use earliest possible timestamp if null
+              final aTime =
+                  aTimestamp ?? Timestamp.fromMillisecondsSinceEpoch(0);
+              final bTime =
+                  bTimestamp ?? Timestamp.fromMillisecondsSinceEpoch(0);
+
+              return bTime.compareTo(aTime); // Sort newest to oldest
+            });
+            break;
+
+          case 'old_to_new':
+            messages.sort((a, b) {
+              final aTimestamp = a['latestReportTime'] as Timestamp?;
+              final bTimestamp = b['latestReportTime'] as Timestamp?;
+
+              // Use earliest possible timestamp if null
+              final aTime =
+                  aTimestamp ?? Timestamp.fromMillisecondsSinceEpoch(0);
+              final bTime =
+                  bTimestamp ?? Timestamp.fromMillisecondsSinceEpoch(0);
+
+              return aTime.compareTo(bTime); // Sort oldest to newest
+            });
+            break;
+
+          case 'most_to_least':
+            messages.sort((a, b) {
+              // Sort by most reports
+              return b['counter'].compareTo(a['counter']);
+            });
+            break;
+
+          case 'least_to_most':
+            messages.sort((a, b) {
+              // Sort by least reports
+              return a['counter'].compareTo(b['counter']);
+            });
+            break;
+
+          default:
+            break;
+        }
+
+        print("Total messages fetched: ${messages.length}");
+        return messages;
+      },
+    );
+  }
+
+  void _showFilterOptions() {
+    showModalBottomSheet(
+      context: context,
+      builder: (context) {
+        return Container(
+          padding: const EdgeInsets.all(16),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              _buildFilterOption('Newest to Oldest', 'new_to_old'),
+              _buildFilterOption('Oldest to Newest', 'old_to_new'),
+              _buildFilterOption('Most Reported to Least', 'most_to_least'),
+              _buildFilterOption('Least Reported to Most', 'least_to_most'),
+            ],
+          ),
+        );
+      },
+    );
+  }
+
+  Widget _buildFilterOption(String label, String value) {
+    return ListTile(
+      title: Text(label),
+      trailing: selectedSortOption == value
+          ? const Icon(Icons.check, color: Colors.blue)
+          : null,
+      onTap: () {
+        setState(() {
+          selectedSortOption = value;
+        });
+        Navigator.pop(context); // Close modal
       },
     );
   }
@@ -143,7 +186,7 @@ class _ReportScamState extends State<RecentScams>
       backgroundColor: const Color(0xFFEDECEC),
       body: Stack(
         children: [
-          // Blue header background with title
+          // Blue header background
           Container(
             height: 200,
             width: double.infinity,
@@ -155,7 +198,7 @@ class _ReportScamState extends State<RecentScams>
                 children: [
                   GestureDetector(
                     onTap: () {
-                      Navigator.pop(context); // Go back to the previous screen
+                      Navigator.pop(context);
                     },
                     child: const Icon(
                       Icons.arrow_back,
@@ -176,7 +219,7 @@ class _ReportScamState extends State<RecentScams>
             ),
           ),
 
-          // White content area with rounded corners
+          // Content area
           Padding(
             padding: const EdgeInsets.only(top: 115.0),
             child: SingleChildScrollView(
@@ -205,9 +248,7 @@ class _ReportScamState extends State<RecentScams>
                             ),
                           ),
                           IconButton(
-                            onPressed: () {
-                              // Handle filter action
-                            },
+                            onPressed: _showFilterOptions,
                             icon: const Icon(
                               Icons.filter_list,
                               size: 28,
@@ -233,9 +274,11 @@ class _ReportScamState extends State<RecentScams>
                               child: Text('Error loading data.'));
                         }
 
-                        final reportedMessages = snapshot.data ?? [];
+                        final reportedMessages = snapshot.data;
 
-                        if (reportedMessages.isEmpty) {
+                        // Ensure that the list is properly checked
+                        if (reportedMessages == null ||
+                            reportedMessages.isEmpty) {
                           return const Center(
                             child: Text(
                               'No reported messages yet.',
@@ -253,8 +296,8 @@ class _ReportScamState extends State<RecentScams>
                             final message = reportedMessages[index];
 
                             return Padding(
-                              padding: const EdgeInsets.only(
-                                  left: 16, right: 16, top: 1, bottom: 12),
+                              padding: const EdgeInsets.symmetric(
+                                  horizontal: 16, vertical: 8),
                               child: Container(
                                 decoration: BoxDecoration(
                                   color: Colors.white,
@@ -273,22 +316,15 @@ class _ReportScamState extends State<RecentScams>
                                     crossAxisAlignment:
                                         CrossAxisAlignment.start,
                                     children: [
-                                      // User(s) who reported the message
-
-                                      const SizedBox(height: 6),
-
                                       Text(
-                                        message['content'],
+                                        message['messageContent'],
                                         style: const TextStyle(
                                           fontSize: 16,
                                           fontWeight: FontWeight.bold,
                                           color: Colors.black,
                                         ),
                                       ),
-
                                       const SizedBox(height: 8),
-
-                                      // Report count and icon
                                       Row(
                                         mainAxisAlignment:
                                             MainAxisAlignment.end,
@@ -300,7 +336,7 @@ class _ReportScamState extends State<RecentScams>
                                           ),
                                           const SizedBox(width: 4),
                                           Text(
-                                            '${message['reportCount']} reports',
+                                            '${message['counter']} reports',
                                             style: const TextStyle(
                                               fontSize: 14,
                                               color: Colors.black,
@@ -316,7 +352,7 @@ class _ReportScamState extends State<RecentScams>
                           },
                         );
                       },
-                    ),
+                    )
                   ],
                 ),
               ),

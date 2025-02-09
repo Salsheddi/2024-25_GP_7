@@ -121,7 +121,7 @@ class _ClassificationState extends State<Classification> {
       print("Error in canDetectMessage: $e");
       return true; // On error, allow detection.
     }
-  } 
+  }
 
   void _showDetectionLimitDialog() {
     showDialog(
@@ -288,7 +288,8 @@ class _ClassificationState extends State<Classification> {
       builder: (BuildContext context) {
         return AlertDialog(
           title: const Text('Report Limit Reached'),
-          content: const Text('You can only report this message once every 24 hours.'),
+          content: const Text(
+              'You can only report this message once every 24 hours.'),
           actions: [
             TextButton(
               onPressed: () {
@@ -352,7 +353,6 @@ class _ClassificationState extends State<Classification> {
         const SnackBar(content: Text('Message reported successfully.')));
   }
 
-  /// Updates the reported messages summary.
   Future<void> updateReportSummary(String message, String userId) async {
     try {
       String hash = generateHash(message);
@@ -360,17 +360,22 @@ class _ClassificationState extends State<Classification> {
           .collection('reportedMessagesSummary')
           .doc(hash);
       DocumentSnapshot snapshot = await ref.get();
+
       if (snapshot.exists) {
+        // Update existing entry
         await ref.update({
           'counter': FieldValue.increment(1),
           'reportedUsers': FieldValue.arrayUnion([userId]),
+          'latestReportTime': FieldValue.serverTimestamp(), // Update timestamp
         });
       } else {
+        // Create a new entry
         await ref.set({
           'messageContent': message,
           'hashContent': hash,
           'counter': 1,
           'reportedUsers': [userId],
+          'latestReportTime': FieldValue.serverTimestamp(), // Set timestamp
         });
       }
     } catch (e) {
@@ -380,7 +385,7 @@ class _ClassificationState extends State<Classification> {
 
   // -------------------------------
   // Updated _checkMessage Function
-  // ------------------------------- 
+  // -------------------------------
   Future<void> _checkMessage() async {
     String userId = FirebaseAuth.instance.currentUser?.uid ?? 'anonymous';
     String message = _textController.text;
@@ -422,7 +427,9 @@ class _ClassificationState extends State<Classification> {
     String baseUrl =
         "https://shdnalssheddi-mirsad-classifier.hf.space/gradio_api/call/predict";
     try {
-      Map<String, dynamic> payload = {"data": [message]};
+      Map<String, dynamic> payload = {
+        "data": [message]
+      };
       final postResponse = await http.post(
         Uri.parse(baseUrl),
         headers: {"Content-Type": "application/json"},
@@ -470,8 +477,9 @@ class _ClassificationState extends State<Classification> {
                     }
                     if (parts.length >= 3) {
                       if (parts[2].contains("Spam Probability:")) {
-                        likelihood =
-                            parts[2].replaceAll("**Spam Probability:**", "").trim();
+                        likelihood = parts[2]
+                            .replaceAll("**Spam Probability:**", "")
+                            .trim();
                       } else if (parts[2].contains("Likelihood:")) {
                         likelihood =
                             parts[2].replaceAll("**Likelihood:**", "").trim();
@@ -517,7 +525,8 @@ class _ClassificationState extends State<Classification> {
             }
           } else {
             setState(() {
-              _result = "Error: GET request failed (${getResponse.statusCode}).";
+              _result =
+                  "Error: GET request failed (${getResponse.statusCode}).";
             });
           }
         } else {
@@ -644,8 +653,7 @@ class ClassificationContent extends StatelessWidget {
                   children: [
                     const SizedBox(width: 10),
                     IconButton(
-                      icon:
-                          const Icon(Icons.arrow_back, color: Colors.white),
+                      icon: const Icon(Icons.arrow_back, color: Colors.white),
                       onPressed: () {
                         Navigator.pop(context);
                       },
@@ -710,8 +718,7 @@ class ClassificationContent extends StatelessWidget {
                                     color: Colors.grey[600],
                                   ),
                                   border: OutlineInputBorder(
-                                      borderRadius:
-                                          BorderRadius.circular(8.0)),
+                                      borderRadius: BorderRadius.circular(8.0)),
                                   fillColor: Colors.grey[200],
                                   filled: true,
                                   suffixIcon: IconButton(
@@ -758,16 +765,15 @@ class ClassificationContent extends StatelessWidget {
                                       onExit: (_) =>
                                           isImageHovered.value = false,
                                       child: AnimatedContainer(
-                                        duration: const Duration(
-                                            milliseconds: 200),
+                                        duration:
+                                            const Duration(milliseconds: 200),
                                         height: hover ? 140 : 120,
                                         width: hover ? 140 : 120,
                                         decoration: BoxDecoration(
                                           borderRadius:
                                               BorderRadius.circular(8.0),
                                           border: Border.all(
-                                              color: Colors.grey,
-                                              width: 1),
+                                              color: Colors.grey, width: 1),
                                         ),
                                         child: Image.file(
                                           image!,
@@ -802,8 +808,7 @@ class ClassificationContent extends StatelessWidget {
                           const SizedBox(height: 16),
                           // Row for Check Message (and conditionally Report Message)
                           Row(
-                            mainAxisAlignment:
-                                MainAxisAlignment.spaceEvenly,
+                            mainAxisAlignment: MainAxisAlignment.spaceEvenly,
                             children: [
                               Expanded(
                                 child: ValueListenableBuilder<bool>(
@@ -821,14 +826,11 @@ class ClassificationContent extends StatelessWidget {
                                       },
                                       child: MouseRegion(
                                         onEnter: (_) =>
-                                            isCheckButtonHovered.value =
-                                                true,
+                                            isCheckButtonHovered.value = true,
                                         onExit: (_) =>
-                                            isCheckButtonHovered.value =
-                                                false,
+                                            isCheckButtonHovered.value = false,
                                         child: ValueListenableBuilder<bool>(
-                                          valueListenable:
-                                              isCheckButtonPressed,
+                                          valueListenable: isCheckButtonPressed,
                                           builder: (context, pressed, child) {
                                             return AnimatedContainer(
                                               duration: const Duration(
@@ -843,10 +845,13 @@ class ClassificationContent extends StatelessWidget {
                                                         255, 28, 73, 134)
                                                     : hover
                                                         ? const Color.fromARGB(
-                                                                255, 165, 203, 248)
-                                                            .withOpacity(
-                                                                0.85)
-                                                        : const Color(0xFF2184FC)
+                                                                255,
+                                                                165,
+                                                                203,
+                                                                248)
+                                                            .withOpacity(0.85)
+                                                        : const Color(
+                                                                0xFF2184FC)
                                                             .withOpacity(0.65),
                                                 borderRadius:
                                                     BorderRadius.circular(8.0),
@@ -886,12 +891,10 @@ class ClassificationContent extends StatelessWidget {
                                           }
                                         },
                                         child: MouseRegion(
-                                          onEnter: (_) =>
-                                              isReportButtonHovered.value =
-                                                  true,
-                                          onExit: (_) =>
-                                              isReportButtonHovered.value =
-                                                  false,
+                                          onEnter: (_) => isReportButtonHovered
+                                              .value = true,
+                                          onExit: (_) => isReportButtonHovered
+                                              .value = false,
                                           child: ValueListenableBuilder<bool>(
                                             valueListenable:
                                                 isReportButtonPressed,
@@ -908,20 +911,18 @@ class ClassificationContent extends StatelessWidget {
                                                       ? const Color.fromARGB(
                                                           255, 134, 28, 28)
                                                       : hover
-                                                          ? const Color.fromARGB(
-                                                                  255,
-                                                                  248,
-                                                                  165,
-                                                                  165)
+                                                          ? const Color
+                                                                  .fromARGB(255,
+                                                                  248, 165, 165)
                                                               .withOpacity(0.85)
-                                                          : const Color.fromARGB(
-                                                                  255,
-                                                                  255,
-                                                                  0,
-                                                                  0)
-                                                              .withOpacity(0.65),
+                                                          : const Color
+                                                                  .fromARGB(255,
+                                                                  255, 0, 0)
+                                                              .withOpacity(
+                                                                  0.65),
                                                   borderRadius:
-                                                      BorderRadius.circular(8.0),
+                                                      BorderRadius.circular(
+                                                          8.0),
                                                 ),
                                                 child: const Text(
                                                   'Report Message',
@@ -988,37 +989,36 @@ class ClassificationContent extends StatelessWidget {
 
   /// Builds the display widget for the detection result.
   Widget _buildResultDisplay() {
-  // Expected format of result:
-  // **Label:** Spam
-  // **Justification:** Contains spam-related keywords.
-  // **Likelihood:** 99.74%
-  final lines = result!.split('\n');
-  String labelText = lines.isNotEmpty
-      ? lines[0].replaceAll("**Label:**", "").trim()
-      : "N/A";
-  String justificationText = lines.length > 1
-      ? lines[1].replaceAll("**Justification:**", "").trim()
-      : "N/A";
-  String likelihoodText = lines.length > 2
-      ? lines[2]
-          .replaceAll("**Likelihood:**", "")
-          .replaceAll("**Spam Probability:**", "")
-          .trim()
-      : "N/A";
+    // Expected format of result:
+    // **Label:** Spam
+    // **Justification:** Contains spam-related keywords.
+    // **Likelihood:** 99.74%
+    final lines = result!.split('\n');
+    String labelText =
+        lines.isNotEmpty ? lines[0].replaceAll("**Label:**", "").trim() : "N/A";
+    String justificationText = lines.length > 1
+        ? lines[1].replaceAll("**Justification:**", "").trim()
+        : "N/A";
+    String likelihoodText = lines.length > 2
+        ? lines[2]
+            .replaceAll("**Likelihood:**", "")
+            .replaceAll("**Spam Probability:**", "")
+            .trim()
+        : "N/A";
 
-  return Column(
-    crossAxisAlignment: CrossAxisAlignment.center,
-    children: [
-      Text("Label: $labelText", style: _extractLabelStyle(result!)),
-      const SizedBox(height: 8),
-      Text("Justification: $justificationText",
-          style: _extractJustificationStyle(result!),
-          textAlign: TextAlign.center), // <-- Centered text
-      const SizedBox(height: 8),
-      Text("Likelihood: $likelihoodText",
-          style: _extractLikelihoodStyle(result!),
-          textAlign: TextAlign.center),
-    ],
-  );
-}
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.center,
+      children: [
+        Text("Label: $labelText", style: _extractLabelStyle(result!)),
+        const SizedBox(height: 8),
+        Text("Justification: $justificationText",
+            style: _extractJustificationStyle(result!),
+            textAlign: TextAlign.center), // <-- Centered text
+        const SizedBox(height: 8),
+        Text("Likelihood: $likelihoodText",
+            style: _extractLikelihoodStyle(result!),
+            textAlign: TextAlign.center),
+      ],
+    );
+  }
 }
