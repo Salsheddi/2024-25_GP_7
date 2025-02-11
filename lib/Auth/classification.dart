@@ -12,7 +12,7 @@ import 'package:google_mlkit_text_recognition/google_mlkit_text_recognition.dart
 import 'package:curved_navigation_bar/curved_navigation_bar.dart';
 
 class Classification extends StatefulWidget {
-  const Classification({super.key});
+  const Classification({Key? key}) : super(key: key);
 
   @override
   State<Classification> createState() => _ClassificationState();
@@ -121,7 +121,7 @@ class _ClassificationState extends State<Classification> {
       print("Error in canDetectMessage: $e");
       return true; // On error, allow detection.
     }
-  } 
+  }
 
   void _showDetectionLimitDialog() {
     showDialog(
@@ -151,9 +151,8 @@ class _ClassificationState extends State<Classification> {
     try {
       String id = 'DE${DateTime.now().millisecondsSinceEpoch}';
       print("Saving detection with ID: $id");
-      print("Message: $message");
       print(
-          "Label: $label, Percentage: $percentage, Justification: $justification");
+          "Message: $message\nLabel: $label, Percentage: $percentage, Justification: $justification");
 
       await FirebaseFirestore.instance.collection('messages').doc(id).set({
         'id': id,
@@ -249,6 +248,7 @@ class _ClassificationState extends State<Classification> {
   }
 
   // --- Reporting Functions ---
+
   /// Checks if the user has reported this [message] in the last 24 hours.
   Future<bool> canReportMessage(String userId, String message) async {
     try {
@@ -271,7 +271,6 @@ class _ClassificationState extends State<Classification> {
           DateTime.now().difference(lastTimestamp.toDate()).inHours < 24;
 
       if (isWithin24Hours) {
-        // Show a dialog if the report was within 24 hours
         _showReportLimitDialog();
       }
 
@@ -288,11 +287,12 @@ class _ClassificationState extends State<Classification> {
       builder: (BuildContext context) {
         return AlertDialog(
           title: const Text('Report Limit Reached'),
-          content: const Text('You can only report this message once every 24 hours.'),
+          content: const Text(
+              'You can only report this message once every 24 hours.'),
           actions: [
             TextButton(
               onPressed: () {
-                Navigator.pop(context); // Close the dialog
+                Navigator.pop(context);
               },
               child: const Text('OK'),
             ),
@@ -302,7 +302,7 @@ class _ClassificationState extends State<Classification> {
     );
   }
 
-  /// Saves the report record in Firestore with an ID starting with "RE".
+  /// Saves the report record in Firestore.
   Future<void> saveReport({
     required String userId,
     required String message,
@@ -380,7 +380,7 @@ class _ClassificationState extends State<Classification> {
 
   // -------------------------------
   // Updated _checkMessage Function
-  // ------------------------------- 
+  // -------------------------------
   Future<void> _checkMessage() async {
     String userId = FirebaseAuth.instance.currentUser?.uid ?? 'anonymous';
     String message = _textController.text;
@@ -455,7 +455,7 @@ class _ClassificationState extends State<Classification> {
                     List<String> parts = resultString.split('\n');
                     print("Parts: $parts");
 
-                    // Extract label, justification, and likelihood depending on the number of parts
+                    // Extract label, justification, and likelihood.
                     String classification = "";
                     String justification = "";
                     String likelihood = "";
@@ -555,7 +555,7 @@ class _ClassificationState extends State<Classification> {
             onCheckMessage: _checkMessage,
             result: _result,
             onReset: _resetContent,
-            onReportMessage: _reportMessage, // Pass report callback
+            onReportMessage: _reportMessage,
           ),
           const Profile(),
         ],
@@ -593,9 +593,9 @@ class _ClassificationState extends State<Classification> {
 }
 
 // ---------------------------------------------------------------------
-// ClassificationContent Widget
+// Modified ClassificationContent Widget (Stateful)
 // ---------------------------------------------------------------------
-class ClassificationContent extends StatelessWidget {
+class ClassificationContent extends StatefulWidget {
   final Future<void> Function() pickImage;
   final File? image;
   final TextEditingController textController;
@@ -605,7 +605,7 @@ class ClassificationContent extends StatelessWidget {
   final Future<void> Function()? onReportMessage;
 
   const ClassificationContent({
-    super.key,
+    Key? key,
     required this.pickImage,
     required this.image,
     required this.textController,
@@ -613,11 +613,121 @@ class ClassificationContent extends StatelessWidget {
     required this.result,
     required this.onReset,
     this.onReportMessage,
-  });
+  }) : super(key: key);
 
   @override
+  State<ClassificationContent> createState() => _ClassificationContentState();
+}
+
+  class _ClassificationContentState extends State<ClassificationContent> {
+  // Controls whether the explanation (justification and likelihood) is shown.
+  bool showExplanation = false;
+
+  /// Extracts the label from the result.
+  /// If the API returns "not" (or similar), this returns "LEGITIMATE".
+  String _extractLabel(String result) {
+    RegExp regExp = RegExp(r"\*\*Label:\*\*\s*(\w+)");
+    Match? match = regExp.firstMatch(result);
+    if (match != null) {
+      String label = match.group(1)?.toLowerCase() ?? "unknown";
+      if (label == "spam") return "SPAM";
+      if (label == "not") return "LEGITIMATE";
+    }
+    return "NOT FOUND";
+  }
+
+  TextStyle _getTextStyle(String result) {
+    String label = _extractLabel(result);
+    if (label == "SPAM") {
+      return const TextStyle(
+          fontSize: 20, fontWeight: FontWeight.bold, color: Colors.red);
+    } else if (label == "LEGITIMATE") {
+      return const TextStyle(
+          fontSize: 20, fontWeight: FontWeight.bold, color: Colors.green);
+    } else {
+      return const TextStyle(
+          fontSize: 20, fontWeight: FontWeight.bold, color: Colors.black);
+    }
+  }
+
+  TextStyle _extractLabelStyle(String result) => _getTextStyle(result);
+  TextStyle _extractJustificationStyle(String result) => _getTextStyle(result);
+  TextStyle _extractLikelihoodStyle(String result) => _getTextStyle(result);
+
+  /// Builds the display widget for the detection result.
+  /// If the message is classified as SPAM, it shows a "Learn why?" option;
+  /// if the message is not spam, it shows "LEGITIMATE" directly.
+  Widget _buildResultDisplay() {
+    // Use _extractLabel to get the displayed label.
+    final String displayedLabel = _extractLabel(widget.result!);
+
+    // Split the result into lines for justification and likelihood.
+    final lines = widget.result!.split('\n');
+    String justificationText = lines.length > 1
+        ? lines[1].replaceAll("**Justification:**", "").trim()
+        : "N/A";
+    String likelihoodText = lines.length > 2
+        ? lines[2]
+            .replaceAll("**Likelihood:**", "")
+            .replaceAll("**Spam Probability:**", "")
+            .trim()
+        : "N/A";
+
+    if (displayedLabel == "LEGITIMATE") {
+      // For non-spam messages, show "LEGITIMATE" and a message.
+      return Column(
+        crossAxisAlignment: CrossAxisAlignment.center,
+        children: [
+          Text("Label: $displayedLabel",
+              style: _extractLabelStyle(widget.result!)),
+          const SizedBox(height: 8),
+          const Text(
+            "This message appears to be legitimate.",
+            textAlign: TextAlign.center,
+            style: TextStyle(fontSize: 16),
+          ),
+        ],
+      );
+    } else {
+      // For spam messages, show the label and a clickable "Learn why?" text.
+      return Column(
+        crossAxisAlignment: CrossAxisAlignment.center,
+        children: [
+          Text("Label: $displayedLabel",
+              style: _extractLabelStyle(widget.result!)),
+          const SizedBox(height: 8),
+          if (!showExplanation)
+            GestureDetector(
+              onTap: () {
+                setState(() {
+                  showExplanation = true;
+                });
+              },
+              child: const Text(
+                "Learn why?",
+                textAlign: TextAlign.center,
+                style: TextStyle(
+                  fontSize: 16,
+                  color: Colors.blue,
+                  decoration: TextDecoration.underline,
+                ),
+              ),
+            ),
+          if (showExplanation)
+            Padding(
+              padding: const EdgeInsets.symmetric(vertical: 8),
+              child: Text(
+                "Because this message contains $justificationText and the likelihood of this message is $likelihoodText.",
+                textAlign: TextAlign.center,
+                style: const TextStyle(fontSize: 16),
+              ),
+            ),
+        ],
+      );
+    }
+  }
+  @override
   Widget build(BuildContext context) {
-    // Notifiers for hover/press effects.
     ValueNotifier<bool> isImageHovered = ValueNotifier(false);
     ValueNotifier<bool> isCheckButtonHovered = ValueNotifier(false);
     ValueNotifier<bool> isCheckButtonPressed = ValueNotifier(false);
@@ -644,8 +754,7 @@ class ClassificationContent extends StatelessWidget {
                   children: [
                     const SizedBox(width: 10),
                     IconButton(
-                      icon:
-                          const Icon(Icons.arrow_back, color: Colors.white),
+                      icon: const Icon(Icons.arrow_back, color: Colors.white),
                       onPressed: () {
                         Navigator.pop(context);
                       },
@@ -700,7 +809,7 @@ class ClassificationContent extends StatelessWidget {
                             clipBehavior: Clip.none,
                             children: [
                               TextFormField(
-                                controller: textController,
+                                controller: widget.textController,
                                 maxLines: 2,
                                 decoration: InputDecoration(
                                   hintText:
@@ -710,12 +819,11 @@ class ClassificationContent extends StatelessWidget {
                                     color: Colors.grey[600],
                                   ),
                                   border: OutlineInputBorder(
-                                      borderRadius:
-                                          BorderRadius.circular(8.0)),
+                                      borderRadius: BorderRadius.circular(8.0)),
                                   fillColor: Colors.grey[200],
                                   filled: true,
                                   suffixIcon: IconButton(
-                                    onPressed: pickImage,
+                                    onPressed: widget.pickImage,
                                     icon: Icon(Icons.attach_file,
                                         size: 25,
                                         color: Colors.blue.withOpacity(0.65)),
@@ -726,7 +834,7 @@ class ClassificationContent extends StatelessWidget {
                                 top: -10,
                                 left: -10,
                                 child: GestureDetector(
-                                  onTap: onReset,
+                                  onTap: widget.onReset,
                                   child: Container(
                                     width: 24,
                                     height: 24,
@@ -745,7 +853,7 @@ class ClassificationContent extends StatelessWidget {
                             ],
                           ),
                           const SizedBox(height: 14),
-                          if (image != null)
+                          if (widget.image != null)
                             Stack(
                               clipBehavior: Clip.none,
                               children: [
@@ -758,19 +866,18 @@ class ClassificationContent extends StatelessWidget {
                                       onExit: (_) =>
                                           isImageHovered.value = false,
                                       child: AnimatedContainer(
-                                        duration: const Duration(
-                                            milliseconds: 200),
+                                        duration:
+                                            const Duration(milliseconds: 200),
                                         height: hover ? 140 : 120,
                                         width: hover ? 140 : 120,
                                         decoration: BoxDecoration(
                                           borderRadius:
                                               BorderRadius.circular(8.0),
                                           border: Border.all(
-                                              color: Colors.grey,
-                                              width: 1),
+                                              color: Colors.grey, width: 1),
                                         ),
                                         child: Image.file(
-                                          image!,
+                                          widget.image!,
                                           fit: BoxFit.cover,
                                         ),
                                       ),
@@ -781,7 +888,7 @@ class ClassificationContent extends StatelessWidget {
                                   top: -10,
                                   left: -10,
                                   child: GestureDetector(
-                                    onTap: onReset,
+                                    onTap: widget.onReset,
                                     child: Container(
                                       width: 24,
                                       height: 24,
@@ -800,10 +907,8 @@ class ClassificationContent extends StatelessWidget {
                               ],
                             ),
                           const SizedBox(height: 16),
-                          // Row for Check Message (and conditionally Report Message)
                           Row(
-                            mainAxisAlignment:
-                                MainAxisAlignment.spaceEvenly,
+                            mainAxisAlignment: MainAxisAlignment.spaceEvenly,
                             children: [
                               Expanded(
                                 child: ValueListenableBuilder<bool>(
@@ -817,15 +922,16 @@ class ClassificationContent extends StatelessWidget {
                                       onTapCancel: () =>
                                           isCheckButtonPressed.value = false,
                                       onTap: () async {
-                                        await onCheckMessage();
+                                        await widget.onCheckMessage();
+                                        setState(() {
+                                          showExplanation = false;
+                                        });
                                       },
                                       child: MouseRegion(
                                         onEnter: (_) =>
-                                            isCheckButtonHovered.value =
-                                                true,
+                                            isCheckButtonHovered.value = true,
                                         onExit: (_) =>
-                                            isCheckButtonHovered.value =
-                                                false,
+                                            isCheckButtonHovered.value = false,
                                         child: ValueListenableBuilder<bool>(
                                           valueListenable:
                                               isCheckButtonPressed,
@@ -844,8 +950,7 @@ class ClassificationContent extends StatelessWidget {
                                                     : hover
                                                         ? const Color.fromARGB(
                                                                 255, 165, 203, 248)
-                                                            .withOpacity(
-                                                                0.85)
+                                                            .withOpacity(0.85)
                                                         : const Color(0xFF2184FC)
                                                             .withOpacity(0.65),
                                                 borderRadius:
@@ -865,9 +970,8 @@ class ClassificationContent extends StatelessWidget {
                                   },
                                 ),
                               ),
-                              // Conditionally display Report Message button if result exists and label is SPAM.
-                              if (result != null &&
-                                  _extractLabel(result!) == "SPAM") ...[
+                              if (widget.result != null &&
+                                  _extractLabel(widget.result!) == "SPAM") ...[
                                 const SizedBox(width: 8),
                                 Expanded(
                                   child: ValueListenableBuilder<bool>(
@@ -881,17 +985,15 @@ class ClassificationContent extends StatelessWidget {
                                         onTapCancel: () =>
                                             isReportButtonPressed.value = false,
                                         onTap: () async {
-                                          if (onReportMessage != null) {
-                                            await onReportMessage!();
+                                          if (widget.onReportMessage != null) {
+                                            await widget.onReportMessage!();
                                           }
                                         },
                                         child: MouseRegion(
                                           onEnter: (_) =>
-                                              isReportButtonHovered.value =
-                                                  true,
+                                              isReportButtonHovered.value = true,
                                           onExit: (_) =>
-                                              isReportButtonHovered.value =
-                                                  false,
+                                              isReportButtonHovered.value = false,
                                           child: ValueListenableBuilder<bool>(
                                             valueListenable:
                                                 isReportButtonPressed,
@@ -909,16 +1011,10 @@ class ClassificationContent extends StatelessWidget {
                                                           255, 134, 28, 28)
                                                       : hover
                                                           ? const Color.fromARGB(
-                                                                  255,
-                                                                  248,
-                                                                  165,
-                                                                  165)
+                                                                  255, 248, 165, 165)
                                                               .withOpacity(0.85)
                                                           : const Color.fromARGB(
-                                                                  255,
-                                                                  255,
-                                                                  0,
-                                                                  0)
+                                                                  255, 255, 0, 0)
                                                               .withOpacity(0.65),
                                                   borderRadius:
                                                       BorderRadius.circular(8.0),
@@ -941,8 +1037,7 @@ class ClassificationContent extends StatelessWidget {
                             ],
                           ),
                           const SizedBox(height: 16),
-                          // Modified result display: show label, justification, and likelihood.
-                          if (result != null) _buildResultDisplay(),
+                          if (widget.result != null) _buildResultDisplay(),
                         ],
                       ),
                     ),
@@ -955,70 +1050,4 @@ class ClassificationContent extends StatelessWidget {
       ),
     );
   }
-
-  /// Extracts the label from the API result.
-  String _extractLabel(String result) {
-    RegExp regExp = RegExp(r"\*\*Label:\*\*\s*(\w+)");
-    Match? match = regExp.firstMatch(result);
-    if (match != null) {
-      String label = match.group(1)?.toLowerCase() ?? "unknown";
-      if (label == "spam") return "SPAM";
-      if (label == "not") return "LEGITIMATE";
-    }
-    return "NOT FOUND";
-  }
-
-  TextStyle _getTextStyle(String result) {
-    String label = _extractLabel(result);
-    if (label == "SPAM") {
-      return const TextStyle(
-          fontSize: 20, fontWeight: FontWeight.bold, color: Colors.red);
-    } else if (label == "LEGITIMATE") {
-      return const TextStyle(
-          fontSize: 20, fontWeight: FontWeight.bold, color: Colors.green);
-    } else {
-      return const TextStyle(
-          fontSize: 20, fontWeight: FontWeight.bold, color: Colors.black);
-    }
-  }
-
-  TextStyle _extractLabelStyle(String result) => _getTextStyle(result);
-  TextStyle _extractJustificationStyle(String result) => _getTextStyle(result);
-  TextStyle _extractLikelihoodStyle(String result) => _getTextStyle(result);
-
-  /// Builds the display widget for the detection result.
-  Widget _buildResultDisplay() {
-  // Expected format of result:
-  // **Label:** Spam
-  // **Justification:** Contains spam-related keywords.
-  // **Likelihood:** 99.74%
-  final lines = result!.split('\n');
-  String labelText = lines.isNotEmpty
-      ? lines[0].replaceAll("**Label:**", "").trim()
-      : "N/A";
-  String justificationText = lines.length > 1
-      ? lines[1].replaceAll("**Justification:**", "").trim()
-      : "N/A";
-  String likelihoodText = lines.length > 2
-      ? lines[2]
-          .replaceAll("**Likelihood:**", "")
-          .replaceAll("**Spam Probability:**", "")
-          .trim()
-      : "N/A";
-
-  return Column(
-    crossAxisAlignment: CrossAxisAlignment.center,
-    children: [
-      Text("Label: $labelText", style: _extractLabelStyle(result!)),
-      const SizedBox(height: 8),
-      Text("Justification: $justificationText",
-          style: _extractJustificationStyle(result!),
-          textAlign: TextAlign.center), // <-- Centered text
-      const SizedBox(height: 8),
-      Text("Likelihood: $likelihoodText",
-          style: _extractLikelihoodStyle(result!),
-          textAlign: TextAlign.center),
-    ],
-  );
-}
 }
