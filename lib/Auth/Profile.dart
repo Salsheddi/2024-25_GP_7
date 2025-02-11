@@ -254,11 +254,16 @@ class _ProfileState extends State<Profile> {
         );
         await user.reauthenticateWithCredential(credential);
 
-        // Proceed to delete the account
+        // Delete related messages and summaries
+        await deleteRelatedMessagesAndSummaries(user.uid);
+
+        // Delete user data from Firestore
         await FirebaseFirestore.instance
             .collection('users')
             .doc(user.uid)
             .delete();
+
+        // Delete user from Firebase Authentication
         await user.delete();
 
         // Navigate to the main page after account deletion
@@ -266,19 +271,17 @@ class _ProfileState extends State<Profile> {
           context,
           MaterialPageRoute(
               builder: (context) =>
-                  const MainPage()), // Replace MainPage with your main page widget
+                  const MainPage()), // Replace with your main page widget
         );
 
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(content: Text('Account successfully deleted.')),
         );
       } on FirebaseAuthException catch (e) {
-        // Show the error message in a visible SnackBar
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(content: Text(e.message ?? 'Failed to delete account')),
         );
       } catch (e) {
-        // Handle Firestore or other errors
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(content: Text('Error deleting account: $e')),
         );
@@ -286,50 +289,80 @@ class _ProfileState extends State<Profile> {
     }
   }
 
-/* Future<void> deleteRelatedMessagesAndSummaries(String userId) async {
-  // Delete reported messages related to the user
-  await FirebaseFirestore.instance
-      .collection('reportedMessages')
-      .where('userId', isEqualTo: userId)
-      .get()
-      .then((snapshot) async {
-        for (var doc in snapshot.docs) {
-          // Delete the message document
-          String messageId = doc.id;
-          await doc.reference.delete();
+  Future<void> deleteRelatedMessagesAndSummaries(String userId) async {
+    FirebaseFirestore firestore = FirebaseFirestore.instance;
+    CollectionReference reportedMessages = firestore.collection('messages');
+    CollectionReference reportedMessagesSummary =
+        firestore.collection('reportedMessagesSummary');
 
-          // Check and update the message summary
+    try {
+      // Fetch all reported messages by the user
+      QuerySnapshot snapshot =
+          await reportedMessages.where('userId', isEqualTo: userId).get();
+
+      if (snapshot.docs.isEmpty) {
+        print("No reported messages found for user: $userId");
+        return;
+      }
+
+      // Start a batch to delete messages efficiently
+      WriteBatch batch = firestore.batch();
+
+      for (QueryDocumentSnapshot doc in snapshot.docs) {
+        String messageContent =
+            doc['message']; // Use 'message' instead of hashContent
+        print("Preparing to delete message: $messageContent");
+
+        // Delete the reported message
+        batch.delete(doc.reference);
+
+        // Find the corresponding summary document using messageContent
+        QuerySnapshot summarySnapshot = await reportedMessagesSummary
+            .where('messageContent', isEqualTo: messageContent)
+            .limit(1)
+            .get();
+
+        if (summarySnapshot.docs.isNotEmpty) {
+          DocumentSnapshot summaryDoc = summarySnapshot.docs.first;
           DocumentReference summaryRef =
-              FirebaseFirestore.instance.collection('reportedMessagesSummary').doc(messageId);
-          await summaryRef.get().then((summaryDoc) async {
-            if (summaryDoc.exists) {
-              // Cast the document data to Map<String, dynamic> directly
-              Map<String, dynamic> data = summaryDoc.data() as Map<String, dynamic>;
+              reportedMessagesSummary.doc(summaryDoc.id);
 
-              // Get the current report count
-              int reportCount = data['reportCount'] ?? 0;
+          Map<String, dynamic> data = summaryDoc.data() as Map<String, dynamic>;
+          List<dynamic> reportedUsers = List.from(data['reportedUsers'] ?? []);
 
-              // If reportCount is greater than 1, decrement it
-              if (reportCount > 1) {
-                await summaryRef.update({'reportCount': reportCount - 1});
-              }
-              // If the report count is 1, delete the summary after decrementing to 0
-              else if (reportCount == 1) {
-                await summaryRef.delete();
-              }
-            }
-          });
+          // Remove user from the list
+          reportedUsers.remove(userId);
+
+          if (reportedUsers.isEmpty) {
+            print("Deleting summary for messageContent: $messageContent");
+            batch.delete(summaryRef);
+          } else {
+            print(
+                "Updating summary for messageContent: $messageContent. New count: ${reportedUsers.length}");
+            batch.update(summaryRef, {
+              'counter': reportedUsers.length,
+              'reportedUsers': reportedUsers,
+            });
+          }
+        } else {
+          print(
+              "No summary document found for messageContent: $messageContent");
         }
-      });
+      }
 
-  // Add more related collections as needed (e.g., comments, reactions, etc.)
-}*/ 
-
+      // Commit batch operations
+      await batch.commit();
+      print("All related messages and summaries deleted/updated successfully.");
+    } catch (e) {
+      print("Error deleting messages and summaries: $e");
+    }
+  }
 
   Future<String?> _showPasswordDialog(BuildContext context) async {
     String? password;
     final TextEditingController passwordController = TextEditingController();
 
+    bool isPasswordVisible = false; // Control the visibility of the password
     bool isPasswordInvalid = false; // Flag to track if the password is invalid
 
     await showDialog<String>(
@@ -344,9 +377,23 @@ class _ProfileState extends State<Profile> {
                 children: [
                   TextField(
                     controller: passwordController,
-                    obscureText: true,
-                    decoration:
-                        const InputDecoration(hintText: 'Enter your password'),
+                    obscureText: !isPasswordVisible, // Toggle visibility
+                    decoration: InputDecoration(
+                      hintText: 'Enter your password',
+                      suffixIcon: IconButton(
+                        icon: Icon(
+                          isPasswordVisible
+                              ? Icons.visibility
+                              : Icons.visibility_off,
+                        ),
+                        onPressed: () {
+                          setState(() {
+                            isPasswordVisible =
+                                !isPasswordVisible; // Toggle visibility
+                          });
+                        },
+                      ),
+                    ),
                   ),
                   if (isPasswordInvalid)
                     const Padding(
@@ -424,7 +471,7 @@ class _ProfileState extends State<Profile> {
             ),
           ),
           Padding(
-            padding: const EdgeInsets.only(top: 160.0),
+            padding: const EdgeInsets.only(top: 130.0),
             child: Container(
               decoration: const BoxDecoration(
                 borderRadius: BorderRadius.only(
@@ -442,152 +489,160 @@ class _ProfileState extends State<Profile> {
                     children: [
                       // user information
 
-                      const SizedBox(height: 20),
-                      Stack(children: [
-                        image != null
-                            ? CircleAvatar(
-                                radius: 40,
-                                backgroundImage: MemoryImage(image!),
-                              )
-                            : const CircleAvatar(
-                                radius: 40,
-                                backgroundImage: AssetImage("img/user.png"),
-                              ),
-                        Positioned(
-                          child: IconButton(
-                              onPressed: selectImage,
-                              icon: const Icon(Icons.add_a_photo_outlined)),
-                          right: -12,
-                          bottom: -15,
+                      const SizedBox(height: 50),
+                      Card(
+                        color: Colors.white,
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(18),
                         ),
-                      ]),
-                      Text(
-                        userName ??
-                            "Loading...", // Use "Loading..." if userName is null
-
-                        style: const TextStyle(
-                            color: Colors.black,
-                            fontSize: 22,
-                            fontWeight: FontWeight.bold),
-                      ),
-
-                      Text(
-                        userEmail ??
-                            "Loading...", // Use "Loading..." if userEmail is null
-
-                        style:
-                            const TextStyle(color: Colors.black, fontSize: 18),
-                      ),
-
-                      SizedBox(height: 20),
-
-                      //Menu
-                      Container(
-                        width: double.infinity, // Set the desired width
-                        padding: const EdgeInsets.symmetric(
-                            horizontal: 12), // Adjust padding
-                        child: TextFormField(
-                          controller: _usernameController,
-                          decoration: InputDecoration(
-                            labelText: 'Edit Username',
-                            labelStyle: const TextStyle(
-                              color: Color(
-                                  0xFF1D76E2), // Customize the label color
-                            ),
-                            contentPadding: const EdgeInsets.symmetric(
-                                vertical: 10, horizontal: 20),
-
-                            // Set the border when the TextFormField is not focused
-                            enabledBorder: OutlineInputBorder(
-                              borderRadius: BorderRadius.circular(12),
-                              borderSide: const BorderSide(
-                                color:
-                                    Color(0xFF1D76E2), // Unfocused border color
-                                width: 1.5, // Border thickness
-                              ),
-                            ),
-
-                            // Set the border when the TextFormField is focused
-                            focusedBorder: OutlineInputBorder(
-                              borderRadius: BorderRadius.circular(12),
-                              borderSide: const BorderSide(
-                                color:
-                                    Color(0xFF1D76E2), // Focused border color
-                                width: 2.0, // Focused border thickness
-                              ),
-                            ),
-
-                            prefixIcon: const Icon(
-                              Icons.person, // Add an icon to the left
-                              color: Color(0xFF1D76E2), // Icon color
-                            ),
-
-                            // save button
-                            suffix: ElevatedButton(
-                              onPressed:
-                                  _updateUsername, // Perform the update action
-                              style: ElevatedButton.styleFrom(
-                                backgroundColor: Color(0xFF1D76E2).withOpacity(
-                                    0.9), // Set the background color
-                                shape: RoundedRectangleBorder(
-                                  borderRadius: BorderRadius.circular(
-                                      8), // Button border radius
+                        elevation: 3,
+                        child: Padding(
+                          padding: const EdgeInsets.all(12.0),
+                          child: Column(
+                            children: [
+                              Stack(children: [
+                                image != null
+                                    ? CircleAvatar(
+                                        radius: 40,
+                                        backgroundImage: MemoryImage(image!),
+                                      )
+                                    : const CircleAvatar(
+                                        radius: 40,
+                                        backgroundImage:
+                                            AssetImage("img/user.png"),
+                                      ),
+                                Positioned(
+                                  child: IconButton(
+                                      onPressed: selectImage,
+                                      icon: const Icon(
+                                          Icons.add_a_photo_outlined)),
+                                  right: -12,
+                                  bottom: -15,
                                 ),
-                                padding: const EdgeInsets.symmetric(
-                                    horizontal: 12, vertical: 8),
+                              ]),
+                              const SizedBox(height: 10),
+                              Text(
+                                userName ?? "Loading...",
+                                style: const TextStyle(
+                                    color: Colors.black,
+                                    fontSize: 22,
+                                    fontWeight: FontWeight.bold),
                               ),
-                              child: const Text(
-                                'Save',
-                                style: TextStyle(
-                                    color: Colors.white), // Button text color
+                              Text(
+                                userEmail ?? "Loading...",
+                                style: const TextStyle(
+                                    color: Colors.black, fontSize: 18),
                               ),
-                            ),
+                              const SizedBox(height: 20),
+                              TextFormField(
+                                controller: _usernameController,
+                                decoration: InputDecoration(
+                                  labelText: 'Edit Username',
+                                  labelStyle: const TextStyle(
+                                    color: Color(
+                                        0xFF1D76E2), // Customize the label color
+                                  ),
+                                  contentPadding: const EdgeInsets.symmetric(
+                                      vertical: 10, horizontal: 20),
 
-                            filled: true,
-                            fillColor: Colors.white, // Background color
-                          ),
-                          style: const TextStyle(
-                            fontSize: 18,
-                            color: Colors.black, // Text size and color
+                                  // Set the border when the TextFormField is not focused
+                                  enabledBorder: OutlineInputBorder(
+                                    borderRadius: BorderRadius.circular(12),
+                                    borderSide: const BorderSide(
+                                      color: Color(
+                                          0xFF1D76E2), // Unfocused border color
+                                      width: 1.5, // Border thickness
+                                    ),
+                                  ),
+
+                                  // Set the border when the TextFormField is focused
+                                  focusedBorder: OutlineInputBorder(
+                                    borderRadius: BorderRadius.circular(12),
+                                    borderSide: const BorderSide(
+                                      color: Color(
+                                          0xFF1D76E2), // Focused border color
+                                      width: 2.0, // Focused border thickness
+                                    ),
+                                  ),
+
+                                  prefixIcon: const Icon(
+                                    Icons.person, // Add an icon to the left
+                                    color: Color(0xFF1D76E2), // Icon color
+                                  ),
+
+                                  // save button
+                                  suffix: ElevatedButton(
+                                    onPressed:
+                                        _updateUsername, // Perform the update action
+                                    style: ElevatedButton.styleFrom(
+                                      backgroundColor: Color(0xFF1D76E2)
+                                          .withOpacity(
+                                              0.9), // Set the background color
+                                      shape: RoundedRectangleBorder(
+                                        borderRadius: BorderRadius.circular(
+                                            8), // Button border radius
+                                      ),
+                                      padding: const EdgeInsets.symmetric(
+                                          horizontal: 12, vertical: 8),
+                                    ),
+                                    child: const Text(
+                                      'Save',
+                                      style: TextStyle(
+                                          color: Colors
+                                              .white), // Button text color
+                                    ),
+                                  ),
+
+                                  filled: true,
+                                  fillColor: Colors.white, // Background color
+                                ),
+                                style: const TextStyle(
+                                  fontSize: 18,
+                                  color: Colors.black, // Text size and color
+                                ),
+                              ),
+                              const SizedBox(height: 20),
+                              ListTile(
+                                onTap: _resetPassword,
+                                leading: const Icon(
+                                  Icons.lock_reset_rounded,
+                                  color: Color(0xFF2184FC),
+                                  size: 35,
+                                ),
+                                title: const Text("Reset Password",
+                                    style: TextStyle(
+                                        fontSize: 16,
+                                        fontWeight: FontWeight.bold)),
+                              ),
+                              const SizedBox(height: 5),
+                              ListTile(
+                                onTap: LogOutConfirmationDialog,
+                                leading: const Icon(
+                                  Icons.logout,
+                                  color: Color(0xFF2184FC),
+                                  size: 30,
+                                ),
+                                title: const Text("Log out",
+                                    style: TextStyle(
+                                        fontSize: 16,
+                                        fontWeight: FontWeight.bold)),
+                              ),
+                              const SizedBox(height: 5),
+                              ListTile(
+                                onTap: () => DeleteConfirmationDialog(context),
+                                leading: const Icon(
+                                  Icons.delete_outlined,
+                                  color: Color(0xFF2184FC),
+                                  size: 35,
+                                ),
+                                title: const Text("Delete Account",
+                                    style: TextStyle(
+                                        fontSize: 16,
+                                        fontWeight: FontWeight.bold)),
+                              ),
+                            ],
                           ),
                         ),
-                      ),
-                      const SizedBox(height: 30),
-                      ProfileInfoWidget(
-                          text: "Reset Password",
-                          iconData: Icons.lock_reset_rounded,
-                          textColor: Colors.black,
-                          backgroundColor: Color(0xFF2184FC),
-                          onPress: _resetPassword),
-
-                      const SizedBox(height: 5),
-
-                      const Divider(),
-
-                      const SizedBox(height: 5),
-
-                      ProfileInfoWidget(
-                        text: "Log out",
-                        iconData: Icons.logout,
-                        textColor: Colors.black,
-                        backgroundColor: Color(0xFF2184FC),
-                        onPress: LogOutConfirmationDialog,
-                      ),
-
-                      const SizedBox(height: 5),
-
-                      const Divider(),
-
-                      const SizedBox(height: 5),
-                      ProfileInfoWidget(
-                        text: "Delete Account",
-                        iconData: Icons.delete_outlined,
-                        textColor: Colors.black,
-                        backgroundColor: Color(0xFF2184FC),
-                        onPress: () {
-                          DeleteConfirmationDialog(
-                              context); // Call the correct function with context
-                        },
                       ),
                     ],
                   ),
