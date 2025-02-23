@@ -7,6 +7,7 @@ import 'package:mirsad/Auth/RecentScams.dart';
 import 'package:mirsad/Auth/chatbot.dart';
 import 'package:mirsad/Auth/classification.dart';
 import 'package:mirsad/Auth/RecentScams.dart';
+import 'package:mirsad/Auth/insights.dart';
 
 class Home extends StatefulWidget {
   const Home({super.key});
@@ -232,7 +233,10 @@ class HomeContent extends StatelessWidget {
                 // Fraud Insights Card
                 InkWell(
                   onTap: () {
-                    // Handle fraud insights navigation
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(builder: (context) => const insights()),
+                    );
                   },
                   child: Container(
                     width: MediaQuery.of(context).size.width / 2 - 24,
