@@ -20,7 +20,7 @@ class _chatbotState extends State<chatbot> {
             child: const Padding(
               padding: EdgeInsets.only(top: 60.0, left: 22),
               child: Text(
-                "MIrsad's AI assistant",
+                "Mirsad's AI assistant",
                 style: TextStyle(
                     color: Colors.white,
                     fontSize: 30,
