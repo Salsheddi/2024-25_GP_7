@@ -2,12 +2,14 @@ import 'package:curved_navigation_bar/curved_navigation_bar.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/material.dart';
 import 'package:curved_navigation_bar/curved_navigation_bar.dart';
-import 'package:mirsad/Auth/Profile.dart';
 import 'package:mirsad/Auth/RecentScams.dart';
 import 'package:mirsad/Auth/chatbot.dart';
 import 'package:mirsad/Auth/classification.dart';
 import 'package:mirsad/Auth/RecentScams.dart';
 import 'package:mirsad/Auth/insights.dart';
+import 'package:mirsad/Auth/AboutMirsad.dart';
+import 'package:mirsad/Auth/Profile.dart'; 
+
 
 class Home extends StatefulWidget {
   const Home({super.key});
@@ -290,7 +292,10 @@ class HomeContent extends StatelessWidget {
               padding: const EdgeInsets.symmetric(horizontal: 16.0),
               child: InkWell(
                 onTap: () {
-                  // Handle navigation to About MIRSAD
+                  Navigator.push(
+                      context,
+                      MaterialPageRoute(builder: (context) => const AboutMirsad()),
+                    );
                 },
                 child: Container(
                   width: double.infinity,

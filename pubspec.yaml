@@ -94,6 +94,11 @@ flutter:
     - img/report.png
     - img/Anareport.png
     - img/Frame9.png
+    - img/detectIcon.png
+    - img/reportingIcon.png
+    - img/reportIcon.png
+    - img/awarenessIcon.png
+    - img/chatbotIcon.png
     
   # An image asset can refer to one or more resolution-specific "variants", see
   # https://flutter.dev/assets-and-images/#resolution-aware
