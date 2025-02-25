@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:fl_chart/fl_chart.dart';
+import 'package:intl/intl.dart';
 
 class insights extends StatefulWidget {
   const insights({super.key});
@@ -15,6 +16,7 @@ class _insightsState extends State<insights>
   @override
   late TabController _tabController;
   int selectedIndex = 0;
+  String selectedPeriod = "Weekly";
   final List<String> options = ["Weekly", "Monthly", "Yearly"];
 
   int totalMessages = 0;
@@ -145,16 +147,13 @@ class _insightsState extends State<insights>
                 child: Column(
                   children: [
                     TabBar(
+                      controller: _tabController,
                       labelColor: Colors.black,
                       indicatorColor: Colors.blue,
-                      labelStyle: TextStyle(
-                          fontSize: 16,
-                          fontWeight:
-                              FontWeight.bold), // Selected tab text size
-                      unselectedLabelStyle:
-                          TextStyle(fontSize: 14), // Unselected tab text size
-                      indicatorSize:
-                          TabBarIndicatorSize.label, // Controls indicator width
+                      labelStyle:
+                          TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+                      unselectedLabelStyle: TextStyle(fontSize: 14),
+                      indicatorSize: TabBarIndicatorSize.label,
                       tabs: [
                         Tab(text: "Weekly"),
                         Tab(text: "Monthly"),
@@ -163,6 +162,7 @@ class _insightsState extends State<insights>
                     ),
                     Expanded(
                       child: TabBarView(
+                        controller: _tabController,
                         children: [
                           WeeklyTab(),
                           MonthlyTab(),
@@ -180,7 +180,6 @@ class _insightsState extends State<insights>
     );
   }
 
-  // Weekly Tab with Stats and Chart
   Widget WeeklyTab() {
     return SingleChildScrollView(
       child: Column(
@@ -189,32 +188,34 @@ class _insightsState extends State<insights>
           _buildChart(),
           _buildStats(),
           buildReportedMessages(),
+          buildReportedMessagess(),
+          buildUsagePatternChart("weekly"),
         ],
       ),
     );
   }
 
-  // Monthly Tab with Stats and Chart
   Widget MonthlyTab() {
     return SingleChildScrollView(
       child: Column(
         children: [
           SizedBox(height: 8),
-          //  _buildChart(),
+          _buildChart(),
           _buildStats(),
+          buildUsagePatternChart("monthly"),
         ],
       ),
     );
   }
 
-  // Yearly Tab with Stats and Chart
   Widget YearlyTab() {
     return SingleChildScrollView(
       child: Column(
         children: [
           SizedBox(height: 8),
-          // _buildChart(),
+          _buildChart(),
           _buildStats(),
+          buildUsagePatternChart("yearly"),
         ],
       ),
     );
@@ -250,8 +251,6 @@ class _insightsState extends State<insights>
               style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
             ),
             SizedBox(height: 16),
-
-            // Total Messages Display
             Center(
               child: Column(
                 children: [
@@ -270,11 +269,8 @@ class _insightsState extends State<insights>
                 ],
               ),
             ),
-
             SizedBox(height: 16),
             Divider(thickness: 1, color: Colors.grey.shade300),
-
-            // Legitimate and Spam Breakdown
             _buildCategoryRow(
                 "Legitimate", legitMessages, legitPercentage, Colors.green),
             _buildCategoryRow(
@@ -285,7 +281,6 @@ class _insightsState extends State<insights>
     );
   }
 
-// Helper Widget for Category Row
   Widget _buildCategoryRow(
       String label, int count, double percentage, Color color) {
     return Padding(
@@ -380,14 +375,22 @@ class _insightsState extends State<insights>
   }
 
   Widget buildReportedMessages() {
-    return Card(
-      color: Colors.white,
-      elevation: 3,
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(15),
-      ),
-      child: Padding(
-        padding: const EdgeInsets.all(16.0),
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 8.0),
+      child: Container(
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(20),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.grey.withOpacity(0.1),
+              spreadRadius: 5,
+              blurRadius: 10,
+              offset: Offset(0, 3),
+            ),
+          ],
+        ),
+        padding: EdgeInsets.all(16),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
@@ -407,9 +410,15 @@ class _insightsState extends State<insights>
                     BarChartGroupData(
                       x: 0,
                       barRods: [
+                        // Total Messages Bar
                         BarChartRodData(
-                          toY:
-                              reportedSpamMessages.toDouble(), // Reported count
+                          toY: totalMessages.toDouble(),
+                          color: Colors.grey,
+                          width: 15,
+                        ),
+                        // Reported Messages Bar (Overlay)
+                        BarChartRodData(
+                          toY: reportedSpamMessages.toDouble(),
                           color: Colors.redAccent,
                           width: 15,
                         ),
@@ -433,7 +442,7 @@ class _insightsState extends State<insights>
                       sideTitles: SideTitles(
                         showTitles: true,
                         getTitlesWidget: (value, meta) {
-                          return Text("Spam Reported",
+                          return Text("Spam Reports",
                               style: TextStyle(fontSize: 12));
                         },
                       ),
@@ -450,12 +459,237 @@ class _insightsState extends State<insights>
             ),
             SizedBox(height: 10),
             Text(
-              "Total Spam Messages Reported: $reportedSpamMessages",
+              "Reported Spam: $reportedSpamMessages / $totalMessages",
               style: TextStyle(fontSize: 14, fontWeight: FontWeight.w500),
+            ),
+            SizedBox(height: 8),
+            Text(
+              "This chart compares the total messages you have received with the messages you have reported as spam. "
+              "The gray bar represents the total messages, while the red bar highlights the spam messages you reported. "
+              "Use this insight to monitor your spam reporting activity.",
+              style: TextStyle(fontSize: 12, color: Colors.grey[700]),
             ),
           ],
         ),
       ),
+    );
+  }
+
+  Widget buildReportedMessagess() {
+    double reportRatio =
+        totalMessages > 0 ? reportedSpamMessages / totalMessages : 0;
+
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 8.0),
+      child: Container(
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(20),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.grey.withOpacity(0.1),
+              spreadRadius: 5,
+              blurRadius: 10,
+              offset: Offset(0, 3),
+            ),
+          ],
+        ),
+        padding: EdgeInsets.all(16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              "Reported Messages",
+              style: TextStyle(
+                fontSize: 18,
+                fontWeight: FontWeight.bold,
+              ),
+            ),
+            SizedBox(height: 10),
+            LinearProgressIndicator(
+              value: reportRatio,
+              backgroundColor: Colors.grey[300],
+              valueColor: AlwaysStoppedAnimation<Color>(Colors.redAccent),
+              minHeight: 15,
+              borderRadius: BorderRadius.circular(10),
+            ),
+            SizedBox(height: 10),
+            Text(
+              "Reported Spam: $reportedSpamMessages / $totalMessages",
+              style: TextStyle(fontSize: 14, fontWeight: FontWeight.w500),
+            ),
+            SizedBox(height: 8),
+            Text(
+              "The progress bar shows the proportion of messages you have reported as spam. "
+              "A higher filled portion means more spam reports.",
+              style: TextStyle(fontSize: 12, color: Colors.grey[700]),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget buildUsagePatternChart(String timePeriod) {
+    DateTime startDate;
+
+    // Define the start date based on the selected time period
+    if (timePeriod == "weekly") {
+      startDate = DateTime.now()
+          .subtract(Duration(days: 7))
+          .toLocal(); // Adjust to local time
+    } else if (timePeriod == "monthly") {
+      startDate = DateTime(DateTime.now().year, DateTime.now().month, 1)
+          .toLocal(); // Adjust to local time
+    } else {
+      // yearly
+      startDate =
+          DateTime(DateTime.now().year, 1, 1).toLocal(); // Adjust to local time
+    }
+
+    print("Start Date for $timePeriod: $startDate"); // Debug log
+
+    return StreamBuilder(
+      stream: FirebaseFirestore.instance
+          .collection("messages")
+          .where("timestamp",
+              isGreaterThanOrEqualTo: Timestamp.fromDate(startDate))
+          .orderBy("timestamp",
+              descending: false) // Ensure sorting by timestamp
+          .snapshots(),
+      builder: (context, AsyncSnapshot<QuerySnapshot> snapshot) {
+        if (!snapshot.hasData) {
+          return Center(child: CircularProgressIndicator());
+        }
+
+        Map<String, int> legitCounts = {};
+        Map<String, int> spamCounts = {};
+        Map<String, int> totalCounts = {};
+
+        for (var doc in snapshot.data!.docs) {
+          var data = doc.data() as Map<String, dynamic>;
+          DateTime timestamp = (data["timestamp"] as Timestamp).toDate();
+          String date = DateFormat('yyyy-MM-dd').format(timestamp);
+
+          print("Fetched doc date: $date, Timestamp: $timestamp"); // Debug log
+
+          if (!totalCounts.containsKey(date)) {
+            totalCounts[date] = 0;
+            spamCounts[date] = 0;
+            legitCounts[date] = 0;
+          }
+
+          totalCounts[date] = (totalCounts[date]! + 1);
+          if (data["label"] == "Spam") {
+            spamCounts[date] = (spamCounts[date]! + 1);
+          } else {
+            legitCounts[date] = (legitCounts[date]! + 1);
+          }
+        }
+
+        List<String> sortedDates = totalCounts.keys.toList()..sort();
+        List<FlSpot> legitSpots = [];
+        List<FlSpot> spamSpots = [];
+        List<FlSpot> totalSpots = [];
+
+        for (int i = 0; i < sortedDates.length; i++) {
+          String date = sortedDates[i];
+          legitSpots.add(FlSpot(i.toDouble(), legitCounts[date]!.toDouble()));
+          spamSpots.add(FlSpot(i.toDouble(), spamCounts[date]!.toDouble()));
+          totalSpots.add(FlSpot(i.toDouble(), totalCounts[date]!.toDouble()));
+        }
+
+        return Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 8.0),
+          child: Container(
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(20),
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.grey.withOpacity(0.1),
+                  spreadRadius: 5,
+                  blurRadius: 10,
+                  offset: Offset(0, 3),
+                ),
+              ],
+            ),
+            padding: EdgeInsets.all(16),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  "AI Fraud Detector Usage Pattern",
+                  style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                ),
+                SizedBox(height: 10),
+                Container(
+                  height: 200,
+                  child: LineChart(
+                    LineChartData(
+                      gridData: FlGridData(show: false),
+                      titlesData: FlTitlesData(
+                        leftTitles: AxisTitles(
+                          sideTitles: SideTitles(
+                            showTitles: true,
+                            reservedSize: 30,
+                            getTitlesWidget: (value, meta) {
+                              return Text(value.toInt().toString(),
+                                  style: TextStyle(fontSize: 12));
+                            },
+                          ),
+                        ),
+                        bottomTitles: AxisTitles(
+                          sideTitles: SideTitles(
+                            showTitles: true,
+                            getTitlesWidget: (value, meta) {
+                              int index = value.toInt();
+                              return index < sortedDates.length
+                                  ? Text(sortedDates[index].substring(5),
+                                      style: TextStyle(fontSize: 10))
+                                  : Text('');
+                            },
+                          ),
+                        ),
+                      ),
+                      borderData: FlBorderData(show: false),
+                      lineBarsData: [
+                        LineChartBarData(
+                          spots: legitSpots,
+                          isCurved: true,
+                          color: Colors.green,
+                          barWidth: 3,
+                          belowBarData: BarAreaData(show: false),
+                        ),
+                        LineChartBarData(
+                          spots: spamSpots,
+                          isCurved: true,
+                          color: Colors.redAccent,
+                          barWidth: 3,
+                          belowBarData: BarAreaData(show: false),
+                        ),
+                        LineChartBarData(
+                          spots: totalSpots,
+                          isCurved: true,
+                          color: Colors.blue,
+                          barWidth: 3,
+                          belowBarData: BarAreaData(show: false),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+                SizedBox(height: 10),
+                Text(
+                  "This chart tracks your daily AI fraud detector usage. Green represents legitimate messages, "
+                  "red indicates spam detections, and blue shows total messages analyzed.",
+                  style: TextStyle(fontSize: 12, color: Colors.grey[700]),
+                ),
+              ],
+            ),
+          ),
+        );
+      },
     );
   }
 }
