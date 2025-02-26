@@ -294,7 +294,7 @@ class HomeContent extends StatelessWidget {
                 onTap: () {
                   Navigator.push(
                       context,
-                      MaterialPageRoute(builder: (context) => const AboutMirsad()),
+                      MaterialPageRoute(builder: (context) => const AboutMirsadPage()),
                     );
                 },
                 child: Container(
