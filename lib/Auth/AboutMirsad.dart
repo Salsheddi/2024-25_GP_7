@@ -1,4 +1,4 @@
-import 'package:flutter/material.dart';
+import 'package:flutter/material.dart'; 
 import 'package:curved_navigation_bar/curved_navigation_bar.dart';
 import 'package:mirsad/Auth/chatbot.dart';
 import 'package:mirsad/Auth/Profile.dart';
@@ -12,6 +12,10 @@ class AboutMirsadPage extends StatefulWidget {
 }
 
 class _AboutMirsadPageState extends State<AboutMirsadPage> {
+  // This variable tracks the selected persistent tab:
+  // null means no persistent tab has been selected and the default (About) view is shown.
+  int? _selectedPersistentIndex;
+
   // Scroll controller for the feature cards.
   final ScrollController _featureScrollController = ScrollController();
 
@@ -30,7 +34,7 @@ class _AboutMirsadPageState extends State<AboutMirsadPage> {
   Widget _aboutContent() {
     const Color headingColor = Color(0xFF2184FC);
     const Color backgroundColor = Colors.white;
-    // Using a fixed width for the cards.
+    // Fixed width for the cards.
     const double cardWidth = 350;
 
     // Feature cards data.
@@ -43,31 +47,34 @@ class _AboutMirsadPageState extends State<AboutMirsadPage> {
       {
         'icon': 'img/reportingIcon.png',
         'title': 'Fraud Messages Reporting',
-        'description': 'You can report any spam message you receive to help spread awareness.',
+        'description':
+            'You can report any spam message you receive to help spread awareness.',
       },
       {
         'icon': 'img/awarenessIcon.png',
         'title': 'Recent scams',
-        'description': 'Be updated with the latest scams reported by other users.',
+        'description':
+            'Be updated with the latest scams reported by other users.',
       },
       {
         'icon': 'img/reportIcon.png',
         'title': 'Fraud Insights',
-        'description': 'Get a detailed analysis of the fraud messages you detected OR reported.',
+        'description':
+            'Get a detailed analysis of the fraud messages you detected OR reported.',
       },
       {
         'icon': 'img/chatbotIcon.png',
         'title': 'Chatbot',
-        'description': 'Get guidance through the app features and FAQs with our chatbot.',
+        'description':
+            'Get guidance through the app features and FAQs with our chatbot.',
       },
     ];
 
     return SingleChildScrollView(
       child: Column(
         children: [
-          // Removed Top Image Section.
           const SizedBox(height: 20),
-          // "What Is Mirsad?" Card
+          // "What Is Mirsad?" Card.
           Container(
             width: cardWidth,
             margin: const EdgeInsets.only(bottom: 16),
@@ -106,7 +113,7 @@ class _AboutMirsadPageState extends State<AboutMirsadPage> {
               ],
             ),
           ),
-          // Feature Cards (Horizontal scroll)
+          // Feature Cards (Horizontal scroll).
           SingleChildScrollView(
             controller: _featureScrollController,
             scrollDirection: Axis.horizontal,
@@ -165,18 +172,20 @@ class _AboutMirsadPageState extends State<AboutMirsadPage> {
               }).toList(),
             ),
           ),
-          // Navigation Buttons under the cards
+          // Navigation Buttons under the cards.
           const SizedBox(height: 16),
           Row(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
               IconButton(
-                icon: const Icon(Icons.chevron_left, size: 30, color: Colors.grey),
+                icon: const Icon(Icons.chevron_left,
+                    size: 30, color: Colors.grey),
                 onPressed: () => _scrollFeatures(-cardWidth),
               ),
               const SizedBox(width: 16),
               IconButton(
-                icon: const Icon(Icons.chevron_right, size: 30, color: Colors.grey),
+                icon: const Icon(Icons.chevron_right,
+                    size: 30, color: Colors.grey),
                 onPressed: () => _scrollFeatures(cardWidth),
               ),
             ],
@@ -187,6 +196,62 @@ class _AboutMirsadPageState extends State<AboutMirsadPage> {
     );
   }
 
+  /// Wraps the about content with its header.
+  Widget _aboutMirsadView() {
+  return Stack(
+    children: [
+      Container(
+        height: double.infinity,
+        width: double.infinity,
+        color: const Color(0xFF2184FC).withOpacity(0.76),
+        child: Padding(
+          padding: const EdgeInsets.only(top: 60.0, left: 22, right: 22),
+          child: Row(
+            crossAxisAlignment: CrossAxisAlignment.center,
+            children: [
+              IconButton(
+                icon: const Icon(Icons.arrow_back, color: Colors.white),
+                onPressed: () {
+                  Navigator.pop(context);
+                },
+              ),
+              Expanded(
+                child: Center(
+                  child: Text(
+                    "About Mirsad",
+                    style: const TextStyle(
+                      color: Colors.white,
+                      fontSize: 30,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                ),
+              ),
+              const SizedBox(width: 48),
+            ],
+          ),
+        ),
+      ),
+      // White content container with curved top corners positioned below the header.
+      Padding(
+        padding: const EdgeInsets.only(top: 180.0), 
+        child: Container(
+          decoration: const BoxDecoration(
+            borderRadius: BorderRadius.only(
+              topLeft: Radius.circular(40),
+              topRight: Radius.circular(40),
+            ),
+            color: Color(0xFFF7F6F6),
+          ),
+          height: double.infinity,
+          width: double.infinity,
+          child: _aboutContent(),
+        ),
+      ),
+    ],
+  );
+}
+
   @override
   void dispose() {
     _featureScrollController.dispose();
@@ -195,80 +260,52 @@ class _AboutMirsadPageState extends State<AboutMirsadPage> {
 
   @override
   Widget build(BuildContext context) {
+    // Decide which view to display:
+    // If _selectedPersistentIndex is null, we show the About view.
+    // Otherwise, we show the corresponding persistent view.
+    Widget currentView;
+    if (_selectedPersistentIndex == 0) {
+      currentView = const chatbot();
+    } else if (_selectedPersistentIndex == 2) {
+      currentView = const Profile();
+    } else {
+      currentView = _aboutMirsadView();
+    }
+
     return Scaffold(
-      // Custom header with a bar shape.
-      body: Stack(
-        children: [
-          // Header Container (the blue bar shape)
-          Container(
-            height: double.infinity,
-            width: double.infinity,
-            color: const Color(0xFF2184FC).withOpacity(0.76),
-            child: const Padding(
-              padding: EdgeInsets.only(top: 60.0, left: 22),
-              child: Text(
-                "About Mirsad",
-                style: TextStyle(
-                  color: Colors.white,
-                  fontSize: 30,
-                  fontWeight: FontWeight.bold
-                ),
-              ),
-            ),
-          ),
-          // Content Container with rounded top corners
-          Padding(
-            padding: const EdgeInsets.only(top: 160.0),
-            child: Container(
-              decoration: const BoxDecoration(
-                borderRadius: BorderRadius.only(
-                  topLeft: Radius.circular(40),
-                  topRight: Radius.circular(40),
-                ),
-                color: Color(0xFFF7F6F6),
-              ),
-              height: double.infinity,
-              width: double.infinity,
-              child: _aboutContent(),
-            ),
-          ),
-        ],
-      ),
-      // Persistent Bottom Navigation Bar.
+      body: currentView,
       bottomNavigationBar: CurvedNavigationBar(
-        backgroundColor: const Color(0xFFF7F6F6),
+        backgroundColor: Color.fromARGB(255, 255, 255, 255),
         height: 70,
         color: const Color(0xFF2184FC).withOpacity(0.65),
         animationDuration: const Duration(milliseconds: 350),
+        // Here we set a default index (1) so that the home icon is in the middle.
+        // (Even though the About view is shown by default.)
         index: 1,
         onTap: (index) {
-          // Navigate to the respective page based on the tapped icon.
-          if (index == 0) {
-            Navigator.pushReplacement(
-              context,
-              MaterialPageRoute(builder: (context) => const chatbot()),
-            );
-          } else if (index == 1) {
+          if (index == 1) {
+            // When the Home icon is tapped, navigate to Home.dart.
             Navigator.pushReplacement(
               context,
               MaterialPageRoute(builder: (context) => const Home()),
             );
-          } else if (index == 2) {
-            Navigator.pushReplacement(
-              context,
-              MaterialPageRoute(builder: (context) => const Profile()),
-            );
+          } else {
+            // For the Chatbot (index 0) and Profile (index 2) icons,
+            // update the persistent view.
+            setState(() {
+              _selectedPersistentIndex = index;
+            });
           }
         },
         items: const [
-          Icon(Icons.smart_toy_outlined, size: 32, color: Colors.white), // Chatbot
-          Icon(Icons.home, size: 32, color: Colors.white),              // Home
-          Icon(Icons.person, size: 32, color: Colors.white),              // Profile
+          Icon(Icons.smart_toy_outlined, size: 32, color: Colors.white), // Chatbot → index 0
+          Icon(Icons.home, size: 32, color: Colors.white),               // Home → index 1
+          Icon(Icons.person, size: 32, color: Colors.white),               // Profile → index 2
         ],
       ),
     );
   }
-}
+}  
 
 
 
