@@ -26,6 +26,27 @@ class _insightsState extends State<insights>
   int legitMessages = 0;
   int spamMessages = 0;
   int reportedSpamMessages = 0;
+  bool noMessagesReceived = false;
+
+  List<String> weeksInMonth = [];
+  String? selectedWeek;
+
+  int selectedMonth = 0; // 0 = Whole Year, 1-12 = specific months
+  final List<String> months = [
+    "Whole Year",
+    "January",
+    "February",
+    "March",
+    "April",
+    "May",
+    "June",
+    "July",
+    "August",
+    "September",
+    "October",
+    "November",
+    "December"
+  ];
 
   @override
   void initState() {
@@ -35,10 +56,51 @@ class _insightsState extends State<insights>
       setState(() {
         selectedIndex = _tabController.index;
       });
-      fetchMessages(); // This will now only be called after _tabController is initialized
+      fetchMessages();
     });
-    // Load data after the tab controller is initialized
-    fetchMessages();
+    generateWeeks();
+    selectedWeek = "Whole Month";
+    fetchMessages(); // Default fetch when the page is loaded
+  }
+
+  void generateWeeks() {
+    DateTime now = DateTime.now();
+    DateTime firstDayOfMonth = DateTime(now.year, now.month, 1);
+    DateTime lastDayOfMonth = DateTime(now.year, now.month + 1, 0);
+
+    List<String> weeks = [];
+    DateTime currentStart = firstDayOfMonth;
+
+    while (currentStart.isBefore(lastDayOfMonth)) {
+      DateTime currentEnd = currentStart.add(Duration(days: 6));
+
+      if (currentEnd.isAfter(lastDayOfMonth)) {
+        currentEnd = lastDayOfMonth;
+      }
+
+      weeks.add(
+          "Week ${weeks.length + 1} (${currentStart.day}-${currentEnd.day})");
+      currentStart = currentEnd.add(Duration(days: 1));
+    }
+
+    setState(() {
+      weeksInMonth = weeks;
+      selectedWeek = weeks.isNotEmpty ? weeks[0] : null;
+    });
+  }
+
+  DateTime getWeekStartDate(int weekNumber) {
+    DateTime firstDayOfMonth =
+        DateTime(DateTime.now().year, DateTime.now().month, 1);
+
+    DateTime start = firstDayOfMonth.add(Duration(days: (weekNumber - 1) * 7));
+
+    // Ensure start date is within the month
+    if (start.month != firstDayOfMonth.month) {
+      start = firstDayOfMonth;
+    }
+
+    return start;
   }
 
   Future<void> fetchMessages() async {
@@ -47,15 +109,57 @@ class _insightsState extends State<insights>
       if (user == null) return;
 
       DateTime now = DateTime.now();
-      DateTime startDate = getStartDate(selectedIndex, now);
+      DateTime startDate = DateTime.now(); // Initialize startDate
+      DateTime endDate = DateTime.now(); // Initialize endDate
+
+      if (selectedIndex == 0) {
+        // Weekly tab: Fetch messages for the current week
+        startDate =
+            now.subtract(Duration(days: now.weekday - 1)); // Start of the week
+        endDate = startDate.add(Duration(days: 6)); // End of the week
+      } else if (selectedIndex == 1) {
+        // Monthly tab
+        if (selectedWeek == "Whole Month") {
+          startDate = DateTime(now.year, now.month, 1);
+          endDate = DateTime(now.year, now.month + 1, 0);
+        } else {
+          int weekNumber = weeksInMonth.indexOf(selectedWeek!) + 1;
+          DateTime weekStartDate = getWeekStartDate(weekNumber);
+          DateTime weekEndDate = weekStartDate.add(Duration(days: 6));
+
+          // Ensure endDate does not exceed the month's last day
+          if (weekEndDate.isAfter(DateTime(now.year, now.month + 1, 0))) {
+            weekEndDate = DateTime(now.year, now.month + 1, 0);
+          }
+
+          startDate = weekStartDate;
+          endDate = weekEndDate;
+        }
+      } else if (selectedIndex == 2) {
+        // Yearly tab: Fetch messages for the selected month or the whole year
+        if (selectedMonth == 0) {
+          // Whole Year
+          startDate = DateTime(now.year, 1, 1);
+          endDate = DateTime(now.year, 12, 31);
+        } else {
+          // Specific Month
+          startDate = DateTime(now.year, selectedMonth, 1);
+          endDate = DateTime(now.year, selectedMonth + 1, 0);
+        }
+      }
+
       Timestamp startTimestamp = Timestamp.fromDate(startDate);
+      Timestamp endTimestamp = Timestamp.fromDate(endDate);
 
-      print("Fetching messages from: $startDate");
+      print("Selected Week: $selectedWeek");
+      print("Fetching messages from: $startDate to $endDate");
 
+      // Query messages based on the selected period (week, month, or year)
       QuerySnapshot querySnapshot = await FirebaseFirestore.instance
           .collection("messages")
           .where("userId", isEqualTo: user.uid)
           .where("timestamp", isGreaterThanOrEqualTo: startTimestamp)
+          .where("timestamp", isLessThanOrEqualTo: endTimestamp)
           .get();
 
       int total = querySnapshot.docs.length;
@@ -73,14 +177,11 @@ class _insightsState extends State<insights>
         }
       }
 
-      print("Total: $total, Legit: $legit, Spam: $spam");
-
+      // Handle reported messages
       QuerySnapshot reportedQuery = await FirebaseFirestore.instance
           .collection("reportedMessagesSummary")
           .where("reportedUsers", arrayContains: user.uid)
           .get();
-
-      print("Fetched reported messages count: ${reportedQuery.docs.length}");
 
       Set<String> uniqueReportedMessages = {};
 
@@ -90,13 +191,12 @@ class _insightsState extends State<insights>
 
       int reportedCount = uniqueReportedMessages.length;
 
-      print("Final reported count: $reportedCount");
-
       setState(() {
         totalMessages = total;
         legitMessages = legit;
         spamMessages = spam;
         reportedSpamMessages = reportedCount;
+        noMessagesReceived = totalMessages == 0;
       });
     } catch (e) {
       print("Error fetching messages: $e");
@@ -236,10 +336,16 @@ class _insightsState extends State<insights>
       child: Column(
         children: [
           SizedBox(height: 8),
-          _buildChart(),
-          _buildStats(),
-          buildReportedMessagess(),
-          buildWeeklyUsageChart(spamMessages, legitMessages),
+          noMessagesReceived
+              ? Text("No messages received in this week")
+              : Column(
+                  children: [
+                    _buildChart(),
+                    _buildStats(),
+                    buildReportedMessagess(),
+                    buildMessageStatsCard(),
+                  ],
+                ),
         ],
       ),
     );
@@ -250,10 +356,48 @@ class _insightsState extends State<insights>
       child: Column(
         children: [
           SizedBox(height: 8),
-          _buildChart(),
-          _buildStats(),
-          buildReportedMessagess(),
-          buildMonthlyUsagePatternChart(),
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 16.0),
+            child: DropdownButton<String>(
+              value: selectedWeek,
+              onChanged: (String? newValue) {
+                setState(() {
+                  selectedWeek = newValue;
+                });
+                fetchMessages();
+              },
+              items: [
+                DropdownMenuItem<String>(
+                  value: "Whole Month",
+                  child: Text("Whole Month"),
+                ),
+                ...weeksInMonth.map<DropdownMenuItem<String>>((String value) {
+                  return DropdownMenuItem<String>(
+                    value: value,
+                    child: Text(value),
+                  );
+                }).toList(),
+              ],
+              isExpanded: true,
+              underline: Container(height: 1, color: Colors.grey),
+            ),
+          ),
+          SizedBox(height: 8),
+          noMessagesReceived
+              ? Text(
+                  "No messages received in this period",
+                  style: TextStyle(
+                      fontSize: 16,
+                      fontWeight: FontWeight.bold,
+                      color: Colors.black),
+                )
+              : Column(
+                  children: [
+                    _buildChart(),
+                    _buildStats(),
+                    buildReportedMessagess(),
+                  ],
+                ),
         ],
       ),
     );
@@ -264,10 +408,44 @@ class _insightsState extends State<insights>
       child: Column(
         children: [
           SizedBox(height: 8),
-          _buildChart(),
-          _buildStats(),
-          buildReportedMessagess(),
-          buildYearlyUsagePatternChart(),
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 16.0),
+            child: DropdownButton<int>(
+              value: selectedMonth,
+              onChanged: (int? newValue) {
+                setState(() {
+                  selectedMonth = newValue!;
+                });
+                fetchMessages(); // Fetch messages based on the selected month
+              },
+              items: months.asMap().entries.map<DropdownMenuItem<int>>((entry) {
+                int index = entry.key;
+                String value = entry.value;
+                return DropdownMenuItem<int>(
+                  value: index,
+                  child: Text(value),
+                );
+              }).toList(),
+              isExpanded: true,
+              underline: Container(height: 1, color: Colors.grey),
+            ),
+          ),
+          SizedBox(height: 8),
+          noMessagesReceived
+              ? Text(
+                  "No messages received in this period",
+                  style: TextStyle(
+                      fontSize: 16,
+                      fontWeight: FontWeight.bold,
+                      color: Colors.red),
+                )
+              : Column(
+                  children: [
+                    _buildChart(),
+                    _buildStats(),
+                    buildReportedMessagess(),
+                  ],
+                ),
         ],
       ),
     );
@@ -491,7 +669,100 @@ class _insightsState extends State<insights>
     );
   }
 
-  Widget buildWeeklyUsageChart(int spamMessages, int legitMessages) {
+  Widget buildMessageStatsCard() {
+    return StreamBuilder(
+      stream: FirebaseFirestore.instance.collection("messages").snapshots(),
+      builder: (context, AsyncSnapshot<QuerySnapshot> snapshot) {
+        if (!snapshot.hasData) {
+          return Center(child: CircularProgressIndicator());
+        }
+
+        // Total messages in the app
+        int totalMessages = snapshot.data!.docs.length;
+
+        // Count the number of spam messages
+        int spamMessages =
+            snapshot.data!.docs.where((doc) => doc["label"] == "Spam").length;
+
+        return Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 8.0),
+          child: Container(
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(20),
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.grey.withOpacity(0.1),
+                  spreadRadius: 5,
+                  blurRadius: 10,
+                  offset: Offset(0, 3),
+                ),
+              ],
+            ),
+            padding: EdgeInsets.all(16),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  "Message Statistics",
+                  style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+                ),
+                SizedBox(height: 10),
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          "Total Messages:",
+                          style: TextStyle(fontSize: 14, color: Colors.black54),
+                        ),
+                        SizedBox(height: 5),
+                        Text(
+                          "$totalMessages",
+                          style: TextStyle(
+                            fontSize: 20,
+                            fontWeight: FontWeight.bold,
+                            color: Colors.blueAccent,
+                          ),
+                        ),
+                      ],
+                    ),
+                    Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          "Spam Messages:",
+                          style: TextStyle(fontSize: 14, color: Colors.black54),
+                        ),
+                        SizedBox(height: 5),
+                        Text(
+                          "$spamMessages",
+                          style: TextStyle(
+                            fontSize: 20,
+                            fontWeight: FontWeight.bold,
+                            color: Colors.redAccent,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ],
+                ),
+                SizedBox(height: 10),
+                Text(
+                  "This represents the total messages received across all users and how many of them were detected as spam.",
+                  style: TextStyle(fontSize: 12, color: Colors.grey[700]),
+                ),
+              ],
+            ),
+          ),
+        );
+      },
+    );
+  }
+
+  /*Widget buildWeeklyUsageChart(int spamMessages, int legitMessages) {
     DateTime now = DateTime.now();
     DateTime startDate =
         now.subtract(Duration(days: now.weekday - 1)); // Start from Monday
@@ -890,5 +1161,5 @@ class _insightsState extends State<insights>
         ),
       ),
     );
-  }
+  }*/
 }
