@@ -21,10 +21,13 @@ class _insightsState extends State<insights>
   int selectedIndex = 0;
   String selectedPeriod = "Weekly";
   final List<String> options = ["Weekly", "Monthly", "Yearly"];
+  bool isLoading = false;
 
   int totalMessages = 0;
+  int AllTotalMessages = 0;
   int legitMessages = 0;
   int spamMessages = 0;
+  int AllSpamMessages = 0;
   int reportedSpamMessages = 0;
   bool noMessagesReceived = false;
 
@@ -51,16 +54,24 @@ class _insightsState extends State<insights>
   @override
   void initState() {
     super.initState();
-    _tabController = TabController(length: 3, vsync: this);
+    _tabController = TabController(
+        length: 3, vsync: this, initialIndex: 0); // Set default tab to Weekly
     _tabController.addListener(() {
-      setState(() {
-        selectedIndex = _tabController.index;
-      });
-      fetchMessages();
+      if (_tabController.indexIsChanging) {
+        setState(() {
+          selectedIndex = _tabController.index;
+        });
+        fetchMessages();
+        fetchMessageStats(); // Ensure stats are fetched on tab change
+      }
     });
+
     generateWeeks();
     selectedWeek = "Whole Month";
-    fetchMessages(); // Default fetch when the page is loaded
+
+    // Preload data for the Weekly tab when the page is first loaded
+    fetchMessages();
+    fetchMessageStats(); // Preload stats data
   }
 
   void generateWeeks() {
@@ -165,6 +176,8 @@ class _insightsState extends State<insights>
       int total = querySnapshot.docs.length;
       int legit = 0;
       int spam = 0;
+      Set<String> reportedSpamMessageIds =
+          Set(); // To track reported spam messages
 
       for (var doc in querySnapshot.docs) {
         String label = doc["label"];
@@ -174,29 +187,116 @@ class _insightsState extends State<insights>
           legit++;
         } else if (label == "Spam") {
           spam++;
+
+          // Check if the message has been reported by the user
+          QuerySnapshot reportedQuery = await FirebaseFirestore.instance
+              .collection("reportedMessagesSummary")
+              .where("messageContent",
+                  isEqualTo:
+                      doc["message"]) // Check for matching message content
+              .where("reportedUsers",
+                  arrayContains: user
+                      .uid) // Check if the current user is in the reportedUsers array
+              .get();
+
+          if (reportedQuery.docs.isNotEmpty) {
+            // Mark this spam message as reported by the user
+            reportedSpamMessageIds.add(doc.id);
+          }
         }
       }
 
+      int reportedSpamCount = reportedSpamMessageIds.length;
+
+      print("Fetched ${querySnapshot.docs.length} documents");
+      print(
+          "Total Spam Messages: $spam, Reported Spam Messages: $reportedSpamCount");
+
       // Handle reported messages
-      QuerySnapshot reportedQuery = await FirebaseFirestore.instance
-          .collection("reportedMessagesSummary")
-          .where("reportedUsers", arrayContains: user.uid)
-          .get();
-
-      Set<String> uniqueReportedMessages = {};
-
-      for (var doc in reportedQuery.docs) {
-        uniqueReportedMessages.add(doc.id);
-      }
-
-      int reportedCount = uniqueReportedMessages.length;
-
       setState(() {
         totalMessages = total;
         legitMessages = legit;
         spamMessages = spam;
-        reportedSpamMessages = reportedCount;
+        reportedSpamMessages = reportedSpamCount;
         noMessagesReceived = totalMessages == 0;
+      });
+    } catch (e) {
+      print("Error fetching messages: $e");
+    }
+  }
+
+  Future<void> fetchMessageStats() async {
+    try {
+      DateTime now = DateTime.now();
+      DateTime startDate = DateTime.now(); // Initialize startDate
+      DateTime endDate = DateTime.now(); // Initialize endDate
+
+      if (selectedIndex == 0) {
+        // Weekly tab: Fetch messages for the current week
+        startDate =
+            now.subtract(Duration(days: now.weekday - 1)); // Start of the week
+        endDate = startDate.add(Duration(days: 6)); // End of the week
+      } else if (selectedIndex == 1) {
+        // Monthly tab
+        if (selectedWeek == "Whole Month") {
+          startDate = DateTime(now.year, now.month, 1);
+          endDate = DateTime(now.year, now.month + 1, 0);
+        } else {
+          int weekNumber = weeksInMonth.indexOf(selectedWeek!) + 1;
+          DateTime weekStartDate = getWeekStartDate(weekNumber);
+          DateTime weekEndDate = weekStartDate.add(Duration(days: 6));
+
+          if (weekEndDate.isAfter(DateTime(now.year, now.month + 1, 0))) {
+            weekEndDate = DateTime(now.year, now.month + 1, 0);
+          }
+
+          startDate = weekStartDate;
+          endDate = weekEndDate;
+        }
+      } else if (selectedIndex == 2) {
+        // Yearly tab
+        if (selectedMonth == 0) {
+          // Whole Year
+          startDate = DateTime(now.year, 1, 1);
+          endDate = DateTime(now.year, 12, 31);
+        } else {
+          // Specific Month
+          startDate = DateTime(now.year, selectedMonth, 1);
+          endDate = DateTime(now.year, selectedMonth + 1, 0);
+        }
+      }
+
+      // Debugging: Print the date range for the Yearly tab
+      print("Start Date: $startDate, End Date: $endDate");
+
+      // Convert to timestamps for Firestore query
+      Timestamp startTimestamp = Timestamp.fromDate(startDate);
+      Timestamp endTimestamp = Timestamp.fromDate(endDate);
+
+      // Fetch messages based on the selected period (week, month, or year)
+      QuerySnapshot querySnapshot = await FirebaseFirestore.instance
+          .collection("messages")
+          .where("timestamp", isGreaterThanOrEqualTo: startTimestamp)
+          .where("timestamp", isLessThanOrEqualTo: endTimestamp)
+          .get();
+
+      int total = querySnapshot.docs.length;
+      int legit = 0;
+      int spam = 0;
+
+      for (var doc in querySnapshot.docs) {
+        String label = doc["label"];
+        if (label == "Not Spam") {
+          legit++;
+        } else if (label == "Spam") {
+          spam++;
+        }
+      }
+
+      setState(() {
+        AllTotalMessages = total;
+        AllSpamMessages = spam;
+        noMessagesReceived = total == 0;
       });
     } catch (e) {
       print("Error fetching messages: $e");
@@ -335,15 +435,21 @@ class _insightsState extends State<insights>
     return SingleChildScrollView(
       child: Column(
         children: [
-          SizedBox(height: 8),
+          SizedBox(height: 27),
           noMessagesReceived
-              ? Text("No messages received in this week")
+              ? Text(
+                  "No messages received in this week",
+                  style: TextStyle(
+                      fontSize: 16,
+                      fontWeight: FontWeight.bold,
+                      color: Colors.red[600]),
+                )
               : Column(
                   children: [
                     _buildChart(),
                     _buildStats(),
                     buildReportedMessagess(),
-                    buildMessageStatsCard(),
+                    buildMessageStatsCard("weekly"),
                   ],
                 ),
         ],
@@ -382,20 +488,21 @@ class _insightsState extends State<insights>
               underline: Container(height: 1, color: Colors.grey),
             ),
           ),
-          SizedBox(height: 8),
+          SizedBox(height: 20),
           noMessagesReceived
               ? Text(
                   "No messages received in this period",
                   style: TextStyle(
                       fontSize: 16,
                       fontWeight: FontWeight.bold,
-                      color: Colors.black),
+                      color: Colors.red[600]),
                 )
               : Column(
                   children: [
                     _buildChart(),
                     _buildStats(),
                     buildReportedMessagess(),
+                    buildMessageStatsCard("monthly"),
                   ],
                 ),
         ],
@@ -407,7 +514,7 @@ class _insightsState extends State<insights>
     return SingleChildScrollView(
       child: Column(
         children: [
-          SizedBox(height: 8),
+          SizedBox(height: 20),
           Padding(
             padding: const EdgeInsets.symmetric(horizontal: 16.0),
             child: DropdownButton<int>(
@@ -437,13 +544,14 @@ class _insightsState extends State<insights>
                   style: TextStyle(
                       fontSize: 16,
                       fontWeight: FontWeight.bold,
-                      color: Colors.red),
+                      color: Colors.red[600]),
                 )
               : Column(
                   children: [
                     _buildChart(),
                     _buildStats(),
                     buildReportedMessagess(),
+                    buildMessageStatsCard("yearly"),
                   ],
                 ),
         ],
@@ -610,10 +718,7 @@ class _insightsState extends State<insights>
   }
 
   Widget buildReportedMessagess() {
-    // Print to verify values
-    print(
-        "Reported Spam: $reportedSpamMessages / Spam Messages: $spamMessages");
-
+    // Calculate the report ratio
     double reportRatio = spamMessages > 0
         ? (reportedSpamMessages > 0 ? reportedSpamMessages / spamMessages : 0)
         : 0;
@@ -669,96 +774,80 @@ class _insightsState extends State<insights>
     );
   }
 
-  Widget buildMessageStatsCard() {
-    return StreamBuilder(
-      stream: FirebaseFirestore.instance.collection("messages").snapshots(),
-      builder: (context, AsyncSnapshot<QuerySnapshot> snapshot) {
-        if (!snapshot.hasData) {
-          return Center(child: CircularProgressIndicator());
-        }
-
-        // Total messages in the app
-        int totalMessages = snapshot.data!.docs.length;
-
-        // Count the number of spam messages
-        int spamMessages =
-            snapshot.data!.docs.where((doc) => doc["label"] == "Spam").length;
-
-        return Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 8.0),
-          child: Container(
-            decoration: BoxDecoration(
-              color: Colors.white,
-              borderRadius: BorderRadius.circular(20),
-              boxShadow: [
-                BoxShadow(
-                  color: Colors.grey.withOpacity(0.1),
-                  spreadRadius: 5,
-                  blurRadius: 10,
-                  offset: Offset(0, 3),
-                ),
-              ],
+  Widget buildMessageStatsCard(String period) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 8.0),
+      child: Container(
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(20),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.grey.withOpacity(0.1),
+              spreadRadius: 5,
+              blurRadius: 10,
+              offset: Offset(0, 3),
             ),
-            padding: EdgeInsets.all(16),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
+          ],
+        ),
+        padding: EdgeInsets.all(16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              "Message Statistics",
+              style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+            ),
+            SizedBox(height: 10),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                Text(
-                  "Message Statistics",
-                  style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
-                ),
-                SizedBox(height: 10),
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          "Total Messages:",
-                          style: TextStyle(fontSize: 14, color: Colors.black54),
-                        ),
-                        SizedBox(height: 5),
-                        Text(
-                          "$totalMessages",
-                          style: TextStyle(
-                            fontSize: 20,
-                            fontWeight: FontWeight.bold,
-                            color: Colors.blueAccent,
-                          ),
-                        ),
-                      ],
+                    Text(
+                      "Total Messages:",
+                      style: TextStyle(fontSize: 14, color: Colors.black54),
                     ),
-                    Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          "Spam Messages:",
-                          style: TextStyle(fontSize: 14, color: Colors.black54),
-                        ),
-                        SizedBox(height: 5),
-                        Text(
-                          "$spamMessages",
-                          style: TextStyle(
-                            fontSize: 20,
-                            fontWeight: FontWeight.bold,
-                            color: Colors.redAccent,
-                          ),
-                        ),
-                      ],
+                    SizedBox(height: 5),
+                    Text(
+                      "$AllTotalMessages",
+                      style: TextStyle(
+                        fontSize: 20,
+                        fontWeight: FontWeight.bold,
+                        color: Colors.blueAccent,
+                      ),
                     ),
                   ],
                 ),
-                SizedBox(height: 10),
-                Text(
-                  "This represents the total messages received across all users and how many of them were detected as spam.",
-                  style: TextStyle(fontSize: 12, color: Colors.grey[700]),
+                Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      "Spam Messages:",
+                      style: TextStyle(fontSize: 14, color: Colors.black54),
+                    ),
+                    SizedBox(height: 5),
+                    Text(
+                      "$AllSpamMessages",
+                      style: TextStyle(
+                        fontSize: 20,
+                        fontWeight: FontWeight.bold,
+                        color: Colors.redAccent,
+                      ),
+                    ),
+                  ],
                 ),
               ],
             ),
-          ),
-        );
-      },
+            SizedBox(height: 10),
+            Text(
+              "This represents the total detection messages received across all users and how many of them were detected as spam.",
+              style: TextStyle(fontSize: 12, color: Colors.grey[700]),
+            ),
+          ],
+        ),
+      ),
     );
   }
 
