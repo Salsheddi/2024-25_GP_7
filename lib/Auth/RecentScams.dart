@@ -21,6 +21,7 @@ class _ReportScamState extends State<RecentScams>
   final TextEditingController _messageController = TextEditingController();
   final FirebaseFirestore firestore = FirebaseFirestore.instance;
   final FirebaseAuth auth = FirebaseAuth.instance;
+  bool _showOnlyMyReports = false;
 
   String selectedSortOption = 'new_to_old'; // Default sorting option
 
@@ -66,30 +67,30 @@ class _ReportScamState extends State<RecentScams>
 
   // Fetch reported messages and apply sorting
   Stream<List<Map<String, dynamic>>> getReportedMessages() {
+    final currentUserId = auth.currentUser?.uid;
+
     return firestore.collection('reportedMessagesSummary').snapshots().map(
       (snapshot) {
         final messages = snapshot.docs.map((doc) {
           final data = doc.data() as Map<String, dynamic>;
-          print(
-              "Fetched message: ${data['messageContent']} - Reports: ${data['counter']}");
+          final reportedUsers = List<String>.from(data['reportedUsers'] ?? []);
 
           final latestReportTime = data['latestReportTime'] as Timestamp?;
-// Assuming 'timestamp' is stored as a Timestamp
 
           return {
             'messageContent': data['messageContent'] ?? 'Unknown Content',
             'counter': data['counter'] ?? 0,
-            'latestReportTime': latestReportTime, // Add timestamp for sorting
+            'latestReportTime': latestReportTime,
+            'reportedUsers': reportedUsers,
           };
+        }).where((message) {
+          if (_showOnlyMyReports && currentUserId != null) {
+            return message['reportedUsers'].contains(currentUserId);
+          }
+          return true; // Show all if not filtering
         }).toList();
 
-        print("Before sorting:");
-        for (var msg in messages) {
-          print(
-              "${msg['messageContent']} - Timestamp: ${msg['latestReportTime']}");
-        }
-
-        // Apply sorting based on the selected sort option
+        // Your existing sorting logic here...
         switch (selectedSortOption) {
           case 'new_to_old':
             messages.sort((a, b) {
@@ -105,7 +106,6 @@ class _ReportScamState extends State<RecentScams>
               return bTime.compareTo(aTime); // Sort newest to oldest
             });
             break;
-
           case 'old_to_new':
             messages.sort((a, b) {
               final aTimestamp = a['latestReportTime'] as Timestamp?;
@@ -120,26 +120,20 @@ class _ReportScamState extends State<RecentScams>
               return aTime.compareTo(bTime); // Sort oldest to newest
             });
             break;
-
           case 'most_to_least':
             messages.sort((a, b) {
               // Sort by most reports
               return b['counter'].compareTo(a['counter']);
             });
             break;
-
           case 'least_to_most':
             messages.sort((a, b) {
               // Sort by least reports
               return a['counter'].compareTo(b['counter']);
             });
             break;
-
-          default:
-            break;
         }
 
-        print("Total messages fetched: ${messages.length}");
         return messages;
       },
     );
@@ -247,13 +241,42 @@ class _ReportScamState extends State<RecentScams>
                               color: Colors.black,
                             ),
                           ),
-                          IconButton(
-                            onPressed: _showFilterOptions,
-                            icon: const Icon(
-                              Icons.filter_list,
-                              size: 28,
-                              color: Colors.black,
-                            ),
+                          Row(
+                            children: [
+                              Tooltip(
+                                message: _showOnlyMyReports
+                                    ? "Showing only messages you reported"
+                                    : "Click to show only messages you reported",
+                                decoration: BoxDecoration(
+                                  color: Colors.black87,
+                                  borderRadius: BorderRadius.circular(8),
+                                ),
+                                textStyle: const TextStyle(color: Colors.white),
+                                waitDuration: const Duration(milliseconds: 500),
+                                child: IconButton(
+                                  icon: Icon(
+                                    Icons.person_search,
+                                    size: 28,
+                                    color: _showOnlyMyReports
+                                        ? Colors.blue
+                                        : Colors.black,
+                                  ),
+                                  onPressed: () {
+                                    setState(() {
+                                      _showOnlyMyReports = !_showOnlyMyReports;
+                                    });
+                                  },
+                                ),
+                              ),
+                              IconButton(
+                                onPressed: _showFilterOptions,
+                                icon: const Icon(
+                                  Icons.filter_list,
+                                  size: 28,
+                                  color: Colors.black,
+                                ),
+                              ),
+                            ],
                           ),
                         ],
                       ),

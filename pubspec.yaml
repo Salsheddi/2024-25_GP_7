@@ -53,6 +53,7 @@ dependencies:
   dash_chat_2: ^0.0.21
   dart_openai: ^5.1.0
   google_generative_ai: ^0.3.0
+  intl: ^0.20.2
 
 
 

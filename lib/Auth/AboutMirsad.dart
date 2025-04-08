@@ -1,4 +1,4 @@
-import 'package:flutter/material.dart'; 
+import 'package:flutter/material.dart';
 import 'package:curved_navigation_bar/curved_navigation_bar.dart';
 import 'package:mirsad/Auth/chatbot.dart';
 import 'package:mirsad/Auth/Profile.dart';
@@ -73,7 +73,7 @@ class _AboutMirsadPageState extends State<AboutMirsadPage> {
     return SingleChildScrollView(
       child: Column(
         children: [
-          const SizedBox(height: 20),
+          const SizedBox(height: 70),
           // "What Is Mirsad?" Card.
           Container(
             width: cardWidth,
@@ -113,6 +113,8 @@ class _AboutMirsadPageState extends State<AboutMirsadPage> {
               ],
             ),
           ),
+          const SizedBox(height: 15),
+
           // Feature Cards (Horizontal scroll).
           SingleChildScrollView(
             controller: _featureScrollController,
@@ -121,7 +123,8 @@ class _AboutMirsadPageState extends State<AboutMirsadPage> {
               children: featureCards.map((cardData) {
                 return Container(
                   width: cardWidth,
-                  margin: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
+                  margin:
+                      const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
                   padding: const EdgeInsets.all(12),
                   decoration: BoxDecoration(
                     color: backgroundColor,
@@ -190,7 +193,6 @@ class _AboutMirsadPageState extends State<AboutMirsadPage> {
               ),
             ],
           ),
-          const SizedBox(height: 24),
         ],
       ),
     );
@@ -198,59 +200,69 @@ class _AboutMirsadPageState extends State<AboutMirsadPage> {
 
   /// Wraps the about content with its header.
   Widget _aboutMirsadView() {
-  return Stack(
-    children: [
-      Container(
-        height: double.infinity,
-        width: double.infinity,
-        color: const Color(0xFF2184FC).withOpacity(0.76),
-        child: Padding(
-          padding: const EdgeInsets.only(top: 60.0, left: 22, right: 22),
-          child: Row(
-            crossAxisAlignment: CrossAxisAlignment.center,
-            children: [
-              IconButton(
-                icon: const Icon(Icons.arrow_back, color: Colors.white),
-                onPressed: () {
-                  Navigator.pop(context);
-                },
-              ),
-              Expanded(
-                child: Center(
-                  child: Text(
-                    "About Mirsad",
-                    style: const TextStyle(
-                      color: Colors.white,
-                      fontSize: 30,
-                      fontWeight: FontWeight.bold,
-                    ),
-                  ),
-                ),
-              ),
-              const SizedBox(width: 48),
-            ],
-          ),
-        ),
-      ),
-      // White content container with curved top corners positioned below the header.
-      Padding(
-        padding: const EdgeInsets.only(top: 180.0), 
-        child: Container(
-          decoration: const BoxDecoration(
-            borderRadius: BorderRadius.only(
-              topLeft: Radius.circular(40),
-              topRight: Radius.circular(40),
-            ),
-            color: Color(0xFFF7F6F6),
-          ),
+    return Stack(
+      children: [
+        Container(
           height: double.infinity,
           width: double.infinity,
-          child: _aboutContent(),
+          color: const Color(0xFF2184FC).withOpacity(0.76),
+          child: Padding(
+            padding: const EdgeInsets.only(top: 60.0, left: 10, right: 22),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                // "Meet Mirsad" text on the blue background
+
+                const SizedBox(
+                    height:
+                        10), // Space between the title and the rest of the content
+                Row(
+                  crossAxisAlignment: CrossAxisAlignment.center,
+                  children: [
+                    IconButton(
+                      icon: const Icon(
+                        Icons.arrow_back,
+                        color: Colors.white,
+                        size: 30,
+                      ),
+                      onPressed: () {
+                        Navigator.pop(context);
+                      },
+                    ),
+                    const SizedBox(width: 10),
+                    Text(
+                      "Meet Mirsad",
+                      style: const TextStyle(
+                        color: Colors.white,
+                        fontSize: 27,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                  ],
+                ),
+              ],
+            ),
+          ),
         ),
-      ),
-    ],
-  );
-}
+        // White content container with curved top corners positioned below the header
+        Padding(
+          padding: const EdgeInsets.only(top: 140.0),
+          child: Container(
+            decoration: const BoxDecoration(
+              borderRadius: BorderRadius.only(
+                topLeft: Radius.circular(40),
+                topRight: Radius.circular(40),
+              ),
+              color: Color(0xFFF7F6F6),
+            ),
+            height: double.infinity,
+            width: double.infinity,
+            child: _aboutContent(),
+          ),
+        ),
+      ],
+    );
+  }
 
   @override
   void dispose() {
@@ -261,8 +273,6 @@ class _AboutMirsadPageState extends State<AboutMirsadPage> {
   @override
   Widget build(BuildContext context) {
     // Decide which view to display:
-    // If _selectedPersistentIndex is null, we show the About view.
-    // Otherwise, we show the corresponding persistent view.
     Widget currentView;
     if (_selectedPersistentIndex == 0) {
       currentView = const chatbot();
@@ -279,33 +289,26 @@ class _AboutMirsadPageState extends State<AboutMirsadPage> {
         height: 70,
         color: const Color(0xFF2184FC).withOpacity(0.65),
         animationDuration: const Duration(milliseconds: 350),
-        // Here we set a default index (1) so that the home icon is in the middle.
-        // (Even though the About view is shown by default.)
         index: 1,
         onTap: (index) {
           if (index == 1) {
-            // When the Home icon is tapped, navigate to Home.dart.
+            // Navigate to Home
             Navigator.pushReplacement(
               context,
               MaterialPageRoute(builder: (context) => const Home()),
             );
           } else {
-            // For the Chatbot (index 0) and Profile (index 2) icons,
-            // update the persistent view.
             setState(() {
               _selectedPersistentIndex = index;
             });
           }
         },
         items: const [
-          Icon(Icons.smart_toy_outlined, size: 32, color: Colors.white), // Chatbot → index 0
-          Icon(Icons.home, size: 32, color: Colors.white),               // Home → index 1
-          Icon(Icons.person, size: 32, color: Colors.white),               // Profile → index 2
+          Icon(Icons.smart_toy_outlined, size: 32, color: Colors.white),
+          Icon(Icons.home, size: 32, color: Colors.white),
+          Icon(Icons.person, size: 32, color: Colors.white),
         ],
       ),
     );
   }
-}  
-
-
-
+}
