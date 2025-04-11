@@ -234,9 +234,9 @@ class _ReportScamState extends State<RecentScams>
                         mainAxisAlignment: MainAxisAlignment.spaceBetween,
                         children: [
                           const Text(
-                            "User-Reported Scams",
+                            "Messages Reported By Others",
                             style: TextStyle(
-                              fontSize: 18,
+                              fontSize: 16,
                               fontWeight: FontWeight.bold,
                               color: Colors.black,
                             ),
@@ -254,12 +254,29 @@ class _ReportScamState extends State<RecentScams>
                                 textStyle: const TextStyle(color: Colors.white),
                                 waitDuration: const Duration(milliseconds: 500),
                                 child: IconButton(
-                                  icon: Icon(
-                                    Icons.person_search,
-                                    size: 28,
-                                    color: _showOnlyMyReports
-                                        ? Colors.blue
-                                        : Colors.black,
+                                  icon: Stack(
+                                    alignment: Alignment.center,
+                                    children: [
+                                      Icon(
+                                        Icons.person_outline, // User icon
+                                        size: 28,
+                                        color: _showOnlyMyReports
+                                            ? Colors.blue
+                                            : Colors.black,
+                                      ),
+                                      Positioned(
+                                        right: -2,
+                                        bottom: -2,
+                                        child: Icon(
+                                          Icons
+                                              .flag, // Checkmark icon to indicate "mine"
+                                          size: 17,
+                                          color: _showOnlyMyReports
+                                              ? Colors.blue
+                                              : Colors.black,
+                                        ),
+                                      ),
+                                    ],
                                   ),
                                   onPressed: () {
                                     setState(() {
