@@ -5,11 +5,13 @@ import 'package:mirsad/Auth/SignUp.dart';
 import 'package:mirsad/Auth/LogIn.dart';
 import 'package:mirsad/Auth/classification.dart';
 import 'package:mirsad/Auth/home.dart';
+import 'package:flutter_dotenv/flutter_dotenv.dart';
 
 void main() async {
-  WidgetsFlutterBinding.ensureInitialized();
-  await Firebase.initializeApp();
-  runApp(MyApp());
+  WidgetsFlutterBinding.ensureInitialized(); // Ensure bindings are initialized first
+  await dotenv.load(); // Load environment variables
+  await Firebase.initializeApp(); // Initialize Firebase
+  runApp(MyApp()); // Run the app
 }
 
 class MyApp extends StatelessWidget {
