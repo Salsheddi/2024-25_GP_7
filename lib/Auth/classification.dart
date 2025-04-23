@@ -693,7 +693,7 @@ class ClassificationContent extends StatefulWidget {
       return Column(
         crossAxisAlignment: CrossAxisAlignment.center,
         children: [
-          Text("Label: $displayedLabel",
+          Text(" $displayedLabel",
               style: _extractLabelStyle(widget.result!)),
           const SizedBox(height: 8),
           if (!showExplanation)
@@ -717,7 +717,7 @@ class ClassificationContent extends StatefulWidget {
             Padding(
               padding: const EdgeInsets.symmetric(vertical: 8),
               child: Text(
-                "Because this message contains $justificationText and the likelihood of this message is $likelihoodText.",
+                "$justificationText and the likelihood of this message is $likelihoodText.",
                 textAlign: TextAlign.center,
                 style: const TextStyle(fontSize: 16),
               ),
@@ -747,7 +747,7 @@ class ClassificationContent extends StatefulWidget {
               Container(
                 height: 100,
                 width: double.infinity,
-                color: const Color(0xFF2184FC),
+                color:const Color(0xFF2184FC).withOpacity(0.76),
                 child: Row(
                   mainAxisAlignment: MainAxisAlignment.start,
                   crossAxisAlignment: CrossAxisAlignment.center,
