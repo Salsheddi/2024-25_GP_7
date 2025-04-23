@@ -1,8 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
-import 'package:dash_chat_2/dash_chat_2.dart';
-import 'package:flutter_dotenv/flutter_dotenv.dart';
+import 'package:flutter_chat_ui/flutter_chat_ui.dart';
+import 'package:flutter_chat_types/flutter_chat_types.dart' as types;
+import 'package:uuid/uuid.dart';
 import 'package:google_generative_ai/google_generative_ai.dart';
+import 'package:flutter_dotenv/flutter_dotenv.dart';
 
 class chatbot extends StatefulWidget {
   const chatbot({super.key});
@@ -12,13 +14,19 @@ class chatbot extends StatefulWidget {
 }
 
 class _chatbotState extends State<chatbot> {
-  late ChatUser _currentUser;
-  final ChatUser _geminiChatUser = ChatUser(id: '2', firstName: "AI", lastName: "Assistant");
+  late types.User _currentUser;
+  final types.User _aiUser = const types.User(
+    id: '2',
+    firstName: "AI",
+    imageUrl:
+        "https://cdn-icons-png.flaticon.com/512/4712/4712035.png", // optional bot avatar
+  );
 
-  List<ChatMessage> _messages = <ChatMessage>[];
-  List<ChatUser> _typingUsers = <ChatUser>[];
-
+  final List<types.Message> _messages = [];
   late GenerativeModel _geminiModel;
+
+  final _uuid = const Uuid();
+  bool _isTyping = false;
 
   @override
   void initState() {
@@ -28,21 +36,66 @@ class _chatbotState extends State<chatbot> {
   }
 
   void _initializeUser() {
-    User? user = FirebaseAuth.instance.currentUser;
-    if (user != null) {
-      _currentUser = ChatUser(id: user.uid, firstName: user.displayName ?? "User");
-    } else {
-      _currentUser = ChatUser(id: "unknown", firstName: "Guest");
-    }
+    final user = FirebaseAuth.instance.currentUser;
+    _currentUser = types.User(
+      id: user?.uid ?? 'unknown',
+      firstName: user?.displayName ?? 'Guest',
+      imageUrl: user?.photoURL ??
+          "https://cdn-icons-png.flaticon.com/512/1077/1077012.png", // default user avatar
+    );
   }
 
   void _initializeGemini() {
     _geminiModel = GenerativeModel(
-      model: 'gemini-2.0-flash',  // ✅ Correct model name
+      model: 'gemini-2.0-flash',
       apiKey: dotenv.env['GEMINI_API_KEY']!,
     );
   }
 
+  void _handleSendPressed(types.PartialText message) async {
+    final userMessage = types.TextMessage(
+      author: _currentUser,
+      createdAt: DateTime.now().millisecondsSinceEpoch,
+      id: _uuid.v4(),
+      text: message.text,
+    );
+
+    setState(() {
+      _messages.insert(0, userMessage);
+      _isTyping = true;
+    });
+
+    try {
+      final response =
+          await _geminiModel.generateContent([Content.text(message.text)]);
+
+      final botMessage = types.TextMessage(
+        author: _aiUser,
+        createdAt: DateTime.now().millisecondsSinceEpoch,
+        id: _uuid.v4(),
+        text: response.text ?? "Sorry, I couldn't process your request.",
+      );
+
+      setState(() {
+        _messages.insert(0, botMessage);
+        _isTyping = false;
+      });
+    } catch (e) {
+      final errorMessage = types.TextMessage(
+        author: _aiUser,
+        createdAt: DateTime.now().millisecondsSinceEpoch,
+        id: _uuid.v4(),
+        text: "An error occurred. Please try again.",
+      );
+
+      setState(() {
+        _messages.insert(0, errorMessage);
+        _isTyping = false;
+      });
+    }
+  }
+
+  @override
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -65,110 +118,69 @@ class _chatbotState extends State<chatbot> {
             ),
           ),
           Padding(
-            padding: const EdgeInsets.only(top: 160.0),
-            child: Container(
-              decoration: const BoxDecoration(
-                borderRadius: BorderRadius.only(
-                  topLeft: Radius.circular(40),
-                  topRight: Radius.circular(40),
+            padding: const EdgeInsets.only(top: 120.0), // adjust as needed
+            child: Chat(
+              messages: _isTyping
+                  ? [
+                      types.TextMessage(
+                        id: 'typing-indicator',
+                        author: _aiUser,
+                        createdAt: DateTime.now().millisecondsSinceEpoch,
+                        text: "AI is typing...",
+                        metadata: {'isTyping': true},
+                      ),
+                      ..._messages
+                    ]
+                  : _messages,
+              onSendPressed: _handleSendPressed,
+              user: _currentUser,
+              showUserAvatars: true,
+              theme: DefaultChatTheme(
+                inputBackgroundColor: Colors.white,
+                inputTextColor: Colors.black,
+                primaryColor: const Color(0xFF2184FC),
+                secondaryColor: const Color.fromARGB(255, 217, 211, 211),
+                receivedMessageBodyTextStyle:
+                    const TextStyle(color: Colors.black),
+                sentMessageBodyTextStyle: const TextStyle(color: Colors.white),
+                backgroundColor: Colors.grey[100]!,
+                inputTextDecoration: InputDecoration(
+                  hintText: "Type a message...",
+                  hintStyle: const TextStyle(color: Colors.grey),
+                  contentPadding: const EdgeInsets.symmetric(
+                      horizontal: 12.0, vertical: 10.0),
+                  border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(20.0),
+                    borderSide: const BorderSide(color: Color(0xFF2184FC)),
+                  ),
+                  enabledBorder: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(20.0),
+                    borderSide: const BorderSide(color: Color(0xFF2184FC)),
+                  ),
+                  focusedBorder: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(20.0),
+                    borderSide:
+                        const BorderSide(color: Color(0xFF2184FC), width: 2.0),
+                  ),
                 ),
-                color: Color(0xFFF7F6F6),
+                typingIndicatorTheme: TypingIndicatorTheme(
+                  animatedCirclesColor: Colors.grey,
+                  animatedCircleSize: 5.0,
+                  bubbleBorder: const BorderRadius.all(Radius.circular(12)),
+                  bubbleColor: Colors.grey[300]!,
+                  countAvatarColor: Colors.grey,
+                  countTextColor: Colors.white,
+                  multipleUserTextStyle: const TextStyle(
+                    fontSize: 14.0,
+                    fontWeight: FontWeight.bold,
+                    color: Colors.black,
+                  ),
+                ),
               ),
-              height: double.infinity,
-              width: double.infinity,
-              child: DashChat(
-  currentUser: _currentUser,
-  typingUsers: _typingUsers,
-  messageOptions: const MessageOptions(
-    currentUserContainerColor: Color.fromRGBO(33, 132, 252, 0.76),
-    containerColor: Color.fromARGB(255, 217, 211, 211),
-    textColor: Color.fromARGB(255, 0, 0, 0),
-  ),
-  inputOptions: InputOptions(
-    inputDecoration: InputDecoration(
-      hintText: "Type a message...",
-      hintStyle: TextStyle(color: Colors.grey),
-      filled: true,
-      fillColor: Colors.white,  // Background color
-      contentPadding: EdgeInsets.symmetric(vertical: 12, horizontal: 20),
-      border: OutlineInputBorder(
-        borderRadius: BorderRadius.circular(20), // Rounded corners
-        borderSide: BorderSide(color: Colors.blue, width: 2), // Border color & width
-      ),
-      enabledBorder: OutlineInputBorder(
-        borderRadius: BorderRadius.circular(20),
-        borderSide: BorderSide(color: Colors.blueAccent, width: 1.5),
-      ),
-      focusedBorder: OutlineInputBorder(
-        borderRadius: BorderRadius.circular(20),
-        borderSide: BorderSide(color: Colors.blue, width: 2),
-      ),
-    ),
-    inputToolbarMargin: EdgeInsets.all(10), // Adds spacing around the input field
-    inputToolbarPadding: EdgeInsets.symmetric(horizontal: 10, vertical: 5), // Padding inside input field
-  ),
-  onSend: (ChatMessage m) {
-    getChatResponse(m);
-  },
-  messages: _messages,
-)
             ),
           ),
         ],
       ),
     );
-  }
-
-  Future<void> getChatResponse(ChatMessage m) async {
-    setState(() {
-      _messages.insert(0, m);
-      _typingUsers.add(_geminiChatUser);
-    });
-
-    try {
-      final response = await _geminiModel.generateContent(
-        [Content.text(m.text)],
-      );
-
-      if (response.text != null) {
-        setState(() {
-          _messages.insert(
-            0,
-            ChatMessage(
-              user: _geminiChatUser,
-              createdAt: DateTime.now(),
-              text: response.text!,
-            ),
-          );
-        });
-      } else {
-        setState(() {
-          _messages.insert(
-            0,
-            ChatMessage(
-              user: _geminiChatUser,
-              createdAt: DateTime.now(),
-              text: "Sorry, I couldn't process your request.",
-            ),
-          );
-        });
-      }
-    } catch (e) {
-      debugPrint("Gemini API Error: $e");
-      setState(() {
-        _messages.insert(
-          0,
-          ChatMessage(
-            user: _geminiChatUser,
-            createdAt: DateTime.now(),
-            text: "An error occurred. Please try again.",
-          ),
-        );
-      });
-    }
-
-    setState(() {
-      _typingUsers.remove(_geminiChatUser);
-    });
   }
 }
