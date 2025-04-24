@@ -678,7 +678,7 @@ class ClassificationContent extends StatefulWidget {
       return Column(
         crossAxisAlignment: CrossAxisAlignment.center,
         children: [
-          Text("Label: $displayedLabel",
+          Text(" $displayedLabel",
               style: _extractLabelStyle(widget.result!)),
           const SizedBox(height: 8),
           const Text(

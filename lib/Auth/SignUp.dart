@@ -112,66 +112,65 @@ class _SignUpState extends State<SignUp> {
       ),
     );
   }
-
-  // Function to handle sign-up logic
+    // Function to handle sign-up logic
   Future<void> _signUp() async {
-    setState(() {
-      hasUserInteractedWithUsername = true;
-      hasUserInteractedWithEmail = true;
-      hasUserInteractedWithPassword = true;
-      hasUserInteractedWithReenterPassword = true;
+  setState(() {
+    hasUserInteractedWithUsername = true;
+    hasUserInteractedWithEmail = true;
+    hasUserInteractedWithPassword = true;
+    hasUserInteractedWithReenterPassword = true;
 
-      isUsernameValid = usernameController.text.trim().isNotEmpty;
-      isEmailValid = isValidEmail(emailController.text.trim());
-      isPasswordValid = validatePasswordStructure(passwordController.text.trim());
-      isReenteredPasswordMatching = passwordController.text.trim() ==
-          reenterPasswordController.text.trim();
+    isUsernameValid = usernameController.text.trim().isNotEmpty;
+    isEmailValid = isValidEmail(emailController.text.trim());
+    isPasswordValid = validatePasswordStructure(passwordController.text.trim());
+    isReenteredPasswordMatching = passwordController.text.trim() == reenterPasswordController.text.trim();
 
-      if (!isEmailValid) {
-        emailErrorMessage = 'Please enter a valid email';
-      }
-    });
-
-    if (!isUsernameValid || !isEmailValid || !isPasswordValid || !isReenteredPasswordMatching) {
-      return;
+    if (!isEmailValid) {
+      emailErrorMessage = 'Please enter a valid email';
     }
+  });
 
-    showLoadingDialog();
-    try {
-      UserCredential userCredential = await _auth.createUserWithEmailAndPassword(
-        email: emailController.text.trim(),
-        password: passwordController.text.trim(),
-      );
+  if (!isUsernameValid || !isEmailValid || !isPasswordValid || !isReenteredPasswordMatching) {
+    return;
+  }
 
-      // Send verification email
-      User? user = userCredential.user;
-      await user?.sendEmailVerification();
+  showLoadingDialog();
+  try {
+    UserCredential userCredential = await _auth.createUserWithEmailAndPassword(
+      email: emailController.text.trim(),
+      password: passwordController.text.trim(),
+    );
 
-      // Hash the password
-      String hashedPassword = hashPassword(passwordController.text.trim());
+    User? user = userCredential.user;
 
-      await _firestore.collection('users').doc(user!.uid).set({
-        'uid': user.uid,
+    // Send verification email
+    await user?.sendEmailVerification();
+
+    // Save user data to Firestore
+    if (user != null) {
+      await FirebaseFirestore.instance.collection('users').doc(user.uid).set({
         'username': usernameController.text.trim(),
         'email': emailController.text.trim(),
-        'password': hashedPassword,
-      });
-
-      Navigator.pop(context);
-      Navigator.pushReplacement(
-        context,
-        MaterialPageRoute(builder: (context) => VerifyEmail(user: user)),
-      );
-    } on FirebaseAuthException catch (e) {
-      Navigator.pop(context);
-      setState(() {
-        emailErrorMessage = e.code == 'email-already-in-use'
-            ? 'This email is already taken'
-            : 'An unknown error occurred';
-        isEmailValid = false;
+        'uid': user.uid,
+        'createdAt': Timestamp.now(),
       });
     }
+
+    Navigator.pop(context);
+    Navigator.pushReplacement(
+      context,
+      MaterialPageRoute(builder: (context) => VerifyEmail(user: user!)),
+    );
+  } on FirebaseAuthException catch (e) {
+    Navigator.pop(context);
+    setState(() {
+      emailErrorMessage = e.code == 'email-already-in-use'
+          ? 'This email is already taken'
+          : 'An unknown error occurred';
+      isEmailValid = false;
+    });
   }
+}
 
   @override
   Widget build(BuildContext context) {
@@ -461,6 +460,21 @@ class VerifyEmail extends StatelessWidget {
 
   const VerifyEmail({Key? key, required this.user}) : super(key: key);
 
+  Future<void> saveUserToFirestore(User user) async {
+    try {
+      FirebaseFirestore firestore = FirebaseFirestore.instance;
+      // Save user data to Firestore
+      await firestore.collection('users').doc(user.uid).set({
+        'email': user.email,
+        'uid': user.uid,
+        'createdAt': FieldValue.serverTimestamp(),
+      });
+      print("User data saved to Firestore successfully");
+    } catch (e) {
+      print("Error saving user data to Firestore: $e");
+    }
+  }
+
   Future<void> resendVerificationEmail(User user) async {
     await user.sendEmailVerification();
   }
@@ -468,18 +482,22 @@ class VerifyEmail extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar( // Correct placement here
+      appBar: AppBar(
+        backgroundColor: Color(0xFF1D76E2),
         title: Text(
           'Verify Email',
-          style: TextStyle(color: Colors.white), // Text color set to white
+          style: TextStyle(color: Colors.white),
         ),
         leading: IconButton(
-          icon: Icon(Icons.arrow_back, color: Colors.white), // Icon color set to white
+          icon: Icon(Icons.arrow_back, color: Colors.white),
           onPressed: () {
-            Navigator.pop(context);
+            Navigator.pushReplacement(
+              context,
+              MaterialPageRoute(builder: (context) => SignUp()),
+            );
           },
         ),
-        elevation: 0, 
+        elevation: 0,
       ),
       body: Container(
         decoration: BoxDecoration(
@@ -555,9 +573,12 @@ class VerifyEmail extends StatelessWidget {
                 ),
               ),
               onPressed: () async {
-                await user.reload(); // Reload user data
-                User? updatedUser = FirebaseAuth.instance.currentUser; 
+                await user.reload();
+                User? updatedUser = FirebaseAuth.instance.currentUser;
                 if (updatedUser != null && updatedUser.emailVerified) {
+                  // Save user data to Firestore after verification
+                  await saveUserToFirestore(updatedUser);
+
                   Navigator.pushReplacement(
                     context,
                     MaterialPageRoute(builder: (context) => LogIn()),
@@ -568,13 +589,10 @@ class VerifyEmail extends StatelessWidget {
                     builder: (BuildContext context) {
                       return AlertDialog(
                         title: Text("Email Not Verified"),
-                        content: Text(
-                            "Your email has not been verified. Please check your inbox and try again."),
+                        content: Text("Your email has not been verified. Please check your inbox and try again."),
                         actions: [
                           TextButton(
-                            onPressed: () {
-                              Navigator.of(context).pop();
-                            },
+                            onPressed: () => Navigator.of(context).pop(),
                             child: Text("Close"),
                           ),
                         ],
