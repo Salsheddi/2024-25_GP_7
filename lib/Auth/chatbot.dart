@@ -18,8 +18,6 @@ class _chatbotState extends State<chatbot> {
   final types.User _aiUser = const types.User(
     id: '2',
     firstName: "AI",
-    imageUrl:
-        "https://cdn-icons-png.flaticon.com/512/4712/4712035.png", // optional bot avatar
   );
 
 
@@ -29,20 +27,28 @@ class _chatbotState extends State<chatbot> {
   final _uuid = const Uuid();
   bool _isTyping = false;
 
-  @override
-  void initState() {
-    super.initState();
-    _initializeUser();
-    _initializeGemini();
-  }
+@override
+void initState() {
+  super.initState();
+  _initializeUser();
+  _initializeGemini();
+  
+  // Add welcome message
+  final welcomeMessage = types.TextMessage(
+    author: _aiUser,
+    createdAt: DateTime.now().millisecondsSinceEpoch,
+    id: _uuid.v4(),
+    text: "Hello I'm your AI assistant, how can I help you?",
+  );
+
+  _messages.insert(0, welcomeMessage);
+}
 
   void _initializeUser() {
     final user = FirebaseAuth.instance.currentUser;
     _currentUser = types.User(
       id: user?.uid ?? 'unknown',
       firstName: user?.displayName ?? 'Guest',
-      imageUrl: user?.photoURL ??
-          "https://cdn-icons-png.flaticon.com/512/1077/1077012.png", // default user avatar
     );
   }
 
@@ -126,7 +132,7 @@ Widget build(BuildContext context) {
                       id: 'typing-indicator',
                       author: _aiUser,
                       createdAt: DateTime.now().millisecondsSinceEpoch,
-                      text: "AI is typing...",
+                      text: "AI assistant is typing...",
                       metadata: {'isTyping': true},
                     ),
                     ..._messages
