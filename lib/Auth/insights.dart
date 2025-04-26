@@ -57,6 +57,7 @@ class _insightsState extends State<insights>
   @override
   void initState() {
     super.initState();
+
     _tabController = TabController(
         length: 3, vsync: this, initialIndex: 0); // Set default tab to Weekly
     _tabController.addListener(() {
@@ -65,7 +66,6 @@ class _insightsState extends State<insights>
           selectedIndex = _tabController.index;
         });
         fetchMessages();
-        fetchMessageStats(); // Ensure stats are fetched on tab change
       }
     });
 
@@ -75,7 +75,6 @@ class _insightsState extends State<insights>
 
     // Preload data for the Weekly tab when the page is first loaded
     fetchMessages();
-    fetchMessageStats(); // Preload stats data
   }
 
   int getCurrentWeekIndex() {
@@ -236,84 +235,6 @@ class _insightsState extends State<insights>
       print("Error fetching messages: $e");
     } finally {
       setState(() => isLoading = false);
-    }
-  }
-
-  Future<void> fetchMessageStats() async {
-    try {
-      DateTime now = DateTime.now();
-      DateTime startDate = DateTime.now(); // Initialize startDate
-      DateTime endDate = DateTime.now(); // Initialize endDate
-
-      if (selectedIndex == 0) {
-        // Weekly tab: Fetch messages for the current week
-        startDate =
-            now.subtract(Duration(days: now.weekday - 1)); // Start of the week
-        endDate = startDate.add(Duration(days: 6)); // End of the week
-      } else if (selectedIndex == 1) {
-        // Monthly tab
-        if (selectedWeek == "Whole Month") {
-          startDate = DateTime(now.year, now.month, 1);
-          endDate = DateTime(now.year, now.month + 1, 0);
-        } else {
-          int weekNumber = weeksInMonth.indexOf(selectedWeek!) + 1;
-          DateTime weekStartDate = getWeekStartDate(weekNumber);
-          DateTime weekEndDate = weekStartDate.add(Duration(days: 6));
-
-          if (weekEndDate.isAfter(DateTime(now.year, now.month + 1, 0))) {
-            weekEndDate = DateTime(now.year, now.month + 1, 0);
-          }
-
-          startDate = weekStartDate;
-          endDate = weekEndDate;
-        }
-      } else if (selectedIndex == 2) {
-        // Yearly tab
-        if (selectedMonth == 0) {
-          // Whole Year
-          startDate = DateTime(now.year, 1, 1);
-          endDate = DateTime(now.year, 12, 31);
-        } else {
-          // Specific Month
-          startDate = DateTime(now.year, selectedMonth, 1);
-          endDate = DateTime(now.year, selectedMonth + 1, 0);
-        }
-      }
-
-      // Debugging: Print the date range for the Yearly tab
-      print("Start Date: $startDate, End Date: $endDate");
-
-      // Convert to timestamps for Firestore query
-      Timestamp startTimestamp = Timestamp.fromDate(startDate);
-      Timestamp endTimestamp = Timestamp.fromDate(endDate);
-
-      // Fetch messages based on the selected period (week, month, or year)
-      QuerySnapshot querySnapshot = await FirebaseFirestore.instance
-          .collection("messages")
-          .where("timestamp", isGreaterThanOrEqualTo: startTimestamp)
-          .where("timestamp", isLessThanOrEqualTo: endTimestamp)
-          .get();
-
-      int total = querySnapshot.docs.length;
-      int legit = 0;
-      int spam = 0;
-
-      for (var doc in querySnapshot.docs) {
-        String label = doc["label"];
-        if (label == "Not Spam") {
-          legit++;
-        } else if (label == "Spam") {
-          spam++;
-        }
-      }
-
-      setState(() {
-        AllTotalMessages = total;
-        AllSpamMessages = spam;
-        noMessagesReceived = total == 0;
-      });
-    } catch (e) {
-      print("Error fetching messages: $e");
     }
   }
 
@@ -483,22 +404,24 @@ class _insightsState extends State<insights>
             ),
           ),
           SizedBox(height: 16),
-          noMessagesReceived
-              ? Text(
-                  "No messages received in this week",
-                  style: TextStyle(
+          if (!isLoading)
+            totalMessages == 0
+                ? Text(
+                    "No messages received in this week",
+                    style: TextStyle(
                       fontSize: 16,
                       fontWeight: FontWeight.bold,
-                      color: Colors.red[600]),
-                )
-              : Column(
-                  children: [
-                    _buildChart(),
-                    _buildStats(),
-                    buildReportedMessagess(),
-                    SizedBox(height: 20),
-                  ],
-                ),
+                      color: Colors.red[600],
+                    ),
+                  )
+                : Column(
+                    children: [
+                      _buildChart(),
+                      _buildStats(),
+                      buildReportedMessagess(),
+                      SizedBox(height: 20),
+                    ],
+                  )
         ],
       ),
     );

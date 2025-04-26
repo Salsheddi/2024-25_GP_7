@@ -40,6 +40,7 @@ class _ProfileState extends State<Profile> {
   void initState() {
     super.initState();
     _fetchUserDetails();
+   \
   }
 
   //select image
@@ -277,15 +278,7 @@ class _ProfileState extends State<Profile> {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(content: Text('Account successfully deleted.')),
         );
-      } on FirebaseAuthException catch (e) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(e.message ?? 'Failed to delete account')),
-        );
-      } catch (e) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Error deleting account: $e')),
-        );
-      }
+      } catch (e) {}
     }
   }
 
